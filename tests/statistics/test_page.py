@@ -305,6 +305,7 @@ def test__statistics_page__paid_out_nothing__renders_dash_not_zero(client: Clien
     assert "—" in institution.group(0)
     assert re.search(r">\s*0\.00\s*€", institution.group(0)) is None
 
+
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
 def test__statistics_page__additive_dimension__shows_total(client: Client) -> None:

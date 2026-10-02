@@ -71,9 +71,7 @@ def group_by(
                 label=OTHER,
                 publications=len({rid for label in folded for rid in sources[label]}),
                 amount=(
-                    sum((amounts[label] for label in folded), ZERO)
-                    if spend is not None
-                    else None
+                    sum((amounts[label] for label in folded), ZERO) if spend is not None else None
                 ),
                 is_other=True,
             )

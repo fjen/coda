@@ -56,6 +56,19 @@
     border-bottom: 1px solid #ddd;
 }
 
+.statistics-values thead th {
+    cursor: pointer;
+    user-select: none;
+}
+
+.statistics-values thead th[aria-sort="ascending"]::after {
+    content: " ▴";
+}
+
+.statistics-values thead th[aria-sort="descending"]::after {
+    content: " ▾";
+}
+
 .statistics-note {
     opacity: 0.8;
 }

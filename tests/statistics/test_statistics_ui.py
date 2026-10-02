@@ -2,6 +2,7 @@
 figure JSON — one svg per [data-chart] mount — and a drill-down click lands on
 the funding-request list filtered to exactly the clicked chart row's set."""
 
+from decimal import Decimal
 from urllib.parse import urlencode
 
 import pytest
@@ -14,6 +15,7 @@ from coda.apps.publications.models import LinkType
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from tests import modelfactory
 from tests.page_objects import filter_ui_selectors
+from tests.statistics import helpers
 from tests.statistics.test_page import PERIOD, seed
 
 
@@ -165,3 +167,48 @@ def test__journal_facet__selecting_a_match__keeps_the_narrowed_list(
     expect(facet.locator('input[name="journal_q"]')).to_have_value("")
     expect(search_box).to_have_value("")
     expect(facet.locator(".selected-tag")).to_have_count(0)
+
+
+@pytest.mark.ui_test
+@pytest.mark.django_db(transaction=True)
+def test__statistics_table__column_header__sorts_the_rows(
+    link_types: None, coda_page: Page, live_server: LiveServer
+) -> None:
+    """The server ranks each facet's table spend-first; clicking the count
+    header re-orders the rows client-side and the click toggles direction."""
+    volume = modelfactory.publisher(name="Big Volume Press")
+    volume_journal = modelfactory.journal(publisher_id=volume.pk, title="Volume journal")
+    for index in range(3):
+        request = helpers.request(f"Volume paper {index}")
+        request.publication.article_journal = volume_journal
+        request.publication.save()
+        position = helpers.position(request.publication.pk, Decimal("10.00"), Decimal("0.00"))
+        helpers.invoice([position])
+    ticket = modelfactory.publisher(name="Big Ticket Press")
+    ticket_journal = modelfactory.journal(publisher_id=ticket.pk, title="Ticket journal")
+    request = helpers.request("Ticket paper")
+    request.publication.article_journal = ticket_journal
+    request.publication.save()
+    position = helpers.position(request.publication.pk, Decimal("500.00"), Decimal("0.00"))
+    helpers.invoice([position])
+
+    _goto_statistics(coda_page, live_server)
+
+    table = coda_page.locator("#statistics-publisher table.statistics-values")
+    first_row = table.locator("tbody tr th").first
+    count_header = table.locator("thead th", has_text="publications")
+    # Native columnheader role survives (a11y.md #2: no role="button" — which
+    # Pico would also paint blue); keyboard reachability replaces it.
+    assert count_header.get_attribute("role") is None
+    expect(count_header).to_have_attribute("tabindex", "0")
+
+    # Server order: money leads (500 € above 30 €).
+    expect(first_row).to_have_text("Big Ticket Press")
+
+    count_header.click()
+    expect(first_row).to_have_text("Big Volume Press")
+    expect(count_header).to_have_attribute("aria-sort", "descending")
+
+    count_header.click()
+    expect(first_row).to_have_text("Big Ticket Press")
+    expect(count_header).to_have_attribute("aria-sort", "ascending")

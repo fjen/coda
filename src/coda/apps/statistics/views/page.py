@@ -57,6 +57,7 @@ class DimensionRow:
     publications: int
     amount: Decimal | None
     link: str | None
+    is_other: bool = False
 
 
 @dataclass(frozen=True)
@@ -198,6 +199,7 @@ def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[Dimension
                         publications=row.publications,
                         amount=row.amount,
                         link=links.link(dimension.id, row),
+                        is_other=row.is_other,
                     )
                     for row in dimension_specs[0].rows
                 ),
