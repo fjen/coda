@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from django.test.utils import DjangoAssertNumQueries
+from pytest_django import DjangoAssertNumQueries
 
 from coda.apps.contracts.mappers._domain import ContractDomainMapper
 from coda.apps.statistics import queries

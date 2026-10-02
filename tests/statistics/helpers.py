@@ -15,6 +15,7 @@ from coda.contexts.finance.services import invoice_service
 from coda.contexts.statistics.dto import RequestFact
 from coda.domain.author import Role
 from coda.domain.date import DateRange
+from coda.domain.finance import invoice_positions
 from coda.domain.finance.costtypes import PublicationCostType
 from coda.domain.finance.invoice import CreditorId
 from coda.domain.finance.invoice_positions import Position, PublicationItem

@@ -42,8 +42,11 @@ def build_facts(
 
 
 def publication_form(publication: Publication) -> str:
-    """Article versus monograph — the one rule the entity-type facet and the
-    publication-form chart must agree on (plan §8)."""
+    """Article iff ``article_journal``, monograph iff ``monograph_publisher`` —
+    the canonical rule of ``PublicationFormCriteria`` (plan §8, §2 #7). Article
+    is checked first: a publication with both fields shows as article and is
+    selectable by both facet values; one with neither is degenerate data that
+    no facet matches and falls back to article."""
     return "article" if publication.article_journal_id else "monograph"
 
 
