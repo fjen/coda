@@ -6,10 +6,10 @@ and which measures it supports; the kind and the additive flags carry the ADR-00
 semantics that keep non-additive charts honest.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
-from typing import Callable
 
 from coda.contexts.statistics.dto import Measure, RequestFact
 
@@ -17,7 +17,7 @@ UNKNOWN = "Unknown"
 OTHER = "Other"
 UNASSIGNED = "Unassigned"
 
-ZERO = Decimal("0")
+ZERO = Decimal(0)
 
 
 class DimensionKind(StrEnum):
@@ -164,10 +164,10 @@ FUNDING_SOURCE = Dimension(
     additive_publications=False,
     money=Measure.FUNDED_BY,
     additive_spend=True,
-    contributions=lambda fact: tuple(
-        Contribution(ref.name, amount) for ref, amount in fact.funded_by.items()
-    )
-    + ((Contribution(UNASSIGNED, fact.unassigned),) if fact.unassigned != ZERO else ()),
+    contributions=lambda fact: (
+        tuple(Contribution(ref.name, amount) for ref, amount in fact.funded_by.items())
+        + ((Contribution(UNASSIGNED, fact.unassigned),) if fact.unassigned != ZERO else ())
+    ),
 )
 
 DIMENSIONS: tuple[Dimension, ...] = (

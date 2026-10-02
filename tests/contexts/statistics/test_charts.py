@@ -1,10 +1,11 @@
 from decimal import Decimal
 
+from tests.contexts.statistics.factories import institution, make_fact
+
 from coda.contexts.statistics import dimensions
 from coda.contexts.statistics.aggregation import group_by
 from coda.contexts.statistics.charts import NON_ADDITIVE_NOTE, build_figure, report
 from coda.contexts.statistics.dto import Measure, StatisticsReport
-from tests.contexts.statistics.factories import institution, make_fact
 
 PUBLISHER_FACTS = (
     make_fact(publisher="Elsevier", paid_out_total=Decimal("100.00")),
@@ -86,7 +87,7 @@ def test__report__headline_counts_publications_spend_and_gaps() -> None:
     facts = (
         make_fact(paid_out_total=Decimal("100.00"), has_invoice=True),
         make_fact(paid_out_total=Decimal("50.00"), has_invoice=False),
-        make_fact(paid_out_total=Decimal("0"), has_invoice=True, invoices_without_rate=2),
+        make_fact(paid_out_total=Decimal(0), has_invoice=True, invoices_without_rate=2),
     )
 
     headline = report(facts, dimensions.DIMENSIONS).headline
@@ -102,4 +103,4 @@ def test__report__on_empty_facts_yields_no_charts_and_a_zero_headline() -> None:
 
     assert the_report.charts == ()
     assert the_report.headline.publications == 0
-    assert the_report.headline.spend == Decimal("0")
+    assert the_report.headline.spend == Decimal(0)

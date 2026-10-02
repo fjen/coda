@@ -6,7 +6,8 @@ reuse later (plan §13). Bars, horizontal, no pie; exact values are NOT here —
 template renders its value tables from ``ChartSpec.rows``.
 """
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import plotly.graph_objects as go
 
@@ -42,7 +43,8 @@ def build_figure(grouping: Grouping) -> dict[str, Any]:
         yaxis={"autorange": "reversed"},
         margin={"l": 10, "r": 10, "t": 40, "b": 10},
     )
-    return figure.to_plotly_json()
+    json: dict[str, Any] = figure.to_plotly_json()
+    return json
 
 
 def report(

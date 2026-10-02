@@ -5,10 +5,11 @@ fact in full under every one of its values; the additive flag on the result tell
 page it must not print a total for such rows.
 """
 
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Sequence
+
 from coda.contexts.statistics.dimensions import OTHER, UNASSIGNED, UNKNOWN, ZERO, Dimension
-from coda.contexts.statistics.dto import GroupRow, Grouping, Measure, RequestFact
+from coda.contexts.statistics.dto import Grouping, GroupRow, Measure, RequestFact
 
 DEFAULT_TOP_N = 15
 

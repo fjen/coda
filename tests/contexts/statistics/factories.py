@@ -28,9 +28,9 @@ def make_fact(**overrides: object) -> RequestFact:
         "institutions": (),
         "no_corresponding_author": False,
         "paid_out_by_cost_type": {},
-        "paid_out_total": Decimal("0"),
+        "paid_out_total": Decimal(0),
         "funded_by": {},
-        "unassigned": Decimal("0"),
+        "unassigned": Decimal(0),
         "invoices_without_rate": 0,
         "has_invoice": True,
     }

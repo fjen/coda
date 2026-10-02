@@ -1,11 +1,11 @@
 from decimal import Decimal
 
 import pytest
+from tests.contexts.statistics.factories import institution, make_fact, source
 
 from coda.contexts.statistics import dimensions
 from coda.contexts.statistics.aggregation import group_by
 from coda.contexts.statistics.dto import Measure
-from tests.contexts.statistics.factories import institution, make_fact, source
 
 
 def test__group_by_publisher__counts_each_request_under_its_own_value() -> None:

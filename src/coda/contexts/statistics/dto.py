@@ -4,11 +4,12 @@ Pure data: no Django, no ORM, no HTTP — that is what makes the layer unit-test
 and reusable by the PDF renderer later (plan §3).
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
-from typing import Any, Mapping
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,7 +102,7 @@ class Grouping:
             return None
         if self.measure is Measure.PUBLICATIONS:
             return sum(row.publications for row in self.rows)
-        return sum((row.amount or Decimal("0") for row in self.rows), Decimal("0"))
+        return sum((row.amount or Decimal(0) for row in self.rows), Decimal(0))
 
 
 @dataclass(frozen=True, slots=True)
