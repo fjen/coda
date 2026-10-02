@@ -1,0 +1,87 @@
+{% comment %}
+    Headline row + one section per dimension (plan §9): figure via json_script
+    rendered by statistics.js, exact-value table beside it, totals only where
+    the grouping is additive (ADR-0007 puts the non-additive note in place of
+    a total).
+{% endcomment %}
+<div class="statistics-headline">
+    <article class="statistics-headline-card">
+        <h4>Publications funded</h4>
+        <p class="statistics-headline-value">{{ headline.publications }}</p>
+    </article>
+    <article class="statistics-headline-card">
+        <h4>Spend incl. tax</h4>
+        <p class="statistics-headline-value">{{ headline.spend|floatformat:2 }} €</p>
+    </article>
+    <article class="statistics-headline-card">
+        <h4>Requests without invoice</h4>
+        <p class="statistics-headline-value">{{ headline.requests_without_invoice }}</p>
+        <small>not in spend yet</small>
+    </article>
+    <article class="statistics-headline-card">
+        <h4>Requests with excluded amounts</h4>
+        <p class="statistics-headline-value">{{ headline.requests_unconvertible }}</p>
+        <small>no rate in the report currency (ADR-0003) —
+            <a href="{% url 'invoices:list' %}">review invoices</a></small>
+    </article>
+</div>
+{% for section in sections %}
+    <section class="statistics-section" id="statistics-{{ section.dimension_id }}">
+        <h3>{{ section.label }}</h3>
+        {% for chart in section.charts %}
+            <div class="statistics-chart-block">
+                <h4>{{ chart.measure_label }}</h4>
+                {{ chart.figure|json_script:chart.data_id }}
+                <div class="statistics-chart"
+                     data-chart="{{ chart.data_id }}"
+                     role="img"
+                     aria-label="{{ chart.title }}"></div>
+                <table class="statistics-values">
+                    <caption class="statistics-caption">Exact values</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ section.label }}</th>
+                            <th scope="col">{{ chart.measure_label }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in chart.rows %}
+                            <tr>
+                                <th scope="row">
+                                    {% if row.link %}
+                                        <a href="{{ row.link }}"
+                                           title="Show these funding requests in the list">{{ row.label }}</a>
+                                    {% else %}
+                                        {{ row.label }}
+                                    {% endif %}
+                                </th>
+                                <td>
+                                    {% if chart.measure == "publications" %}
+                                        {{ row.publications }}
+                                    {% else %}
+                                        {{ row.amount|floatformat:2 }} €
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2">
+                                {% if chart.note %}
+                                    <em class="statistics-note">{{ chart.note }}</em>
+                                {% elif chart.measure == "publications" %}
+                                    Total: {{ chart.total }} publications
+                                {% else %}
+                                    Total: {{ chart.total|floatformat:2 }} €
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        {% endfor %}
+    </section>
+{% empty %}
+    <p class="my-2">No funding requests match the selected filters.</p>
+{% endfor %}
