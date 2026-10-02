@@ -100,7 +100,51 @@ INSTITUTION = Dimension(
     ),
 )
 
-DIMENSIONS: tuple[Dimension, ...] = (PUBLISHER, INSTITUTION)
+COST_TYPE = Dimension(
+    id="cost_type",
+    label="Cost type",
+    kind=DimensionKind.PARTITION,
+    has_publications=False,
+    additive_publications=False,
+    money=Measure.PAID_OUT,
+    additive_spend=True,
+    contributions=lambda fact: tuple(
+        Contribution(cost_type, amount) for cost_type, amount in fact.paid_out_by_cost_type.items()
+    ),
+)
+
+FUNDER = Dimension(
+    id="funder",
+    label="Funder",
+    kind=DimensionKind.REPEATED,
+    has_publications=True,
+    additive_publications=False,
+    money=None,
+    additive_spend=False,
+    contributions=lambda fact: tuple(Contribution(name, ZERO) for name in fact.funders),
+)
+
+FUNDING_SOURCE = Dimension(
+    id="funding_source",
+    label="Funding source (cost splitting)",
+    kind=DimensionKind.PARTITION,
+    has_publications=True,
+    additive_publications=False,
+    money=Measure.FUNDED_BY,
+    additive_spend=True,
+    contributions=lambda fact: tuple(
+        Contribution(ref.name, amount) for ref, amount in fact.funded_by.items()
+    )
+    + ((Contribution(UNASSIGNED, fact.unassigned),) if fact.unassigned != ZERO else ()),
+)
+
+DIMENSIONS: tuple[Dimension, ...] = (
+    PUBLISHER,
+    INSTITUTION,
+    COST_TYPE,
+    FUNDER,
+    FUNDING_SOURCE,
+)
 
 _BY_ID: dict[str, Dimension] = {dimension.id: dimension for dimension in DIMENSIONS}
 

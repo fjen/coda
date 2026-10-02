@@ -7,7 +7,7 @@ page it must not print a total for such rows.
 
 from decimal import Decimal
 from typing import Sequence
-from coda.contexts.statistics.dimensions import UNKNOWN, ZERO, Dimension
+from coda.contexts.statistics.dimensions import OTHER, UNASSIGNED, UNKNOWN, ZERO, Dimension
 from coda.contexts.statistics.dto import GroupRow, Grouping, Measure, RequestFact
 
 DEFAULT_TOP_N = 15
@@ -25,10 +25,12 @@ def group_by(
 
     counts: dict[str, int] = {}
     amounts: dict[str, Decimal] = {}
+    sources: dict[str, set[int]] = {}
     for fact in facts:
         contributions = dimension.contributions(fact)
         for label in dict.fromkeys(contribution.label for contribution in contributions):
             counts[label] = counts.get(label, 0) + 1
+            sources.setdefault(label, set()).add(fact.request_id)
         if measure is not Measure.PUBLICATIONS:
             for contribution in contributions:
                 amounts[contribution.label] = (
@@ -40,19 +42,35 @@ def group_by(
             return Decimal(counts[label])
         return amounts[label]
 
-    rows = tuple(
-        GroupRow(
+    def row(label: str) -> GroupRow:
+        return GroupRow(
             label=label,
             publications=counts[label],
             amount=None if measure is Measure.PUBLICATIONS else amounts[label],
             is_unknown=label == UNKNOWN,
+            is_unassigned=label == UNASSIGNED,
         )
-        for label in sorted(counts, key=lambda label: (-value(label), label))
-    )
+
+    ordered = sorted(counts, key=lambda label: (-value(label), label))
+    rows = [row(label) for label in ordered[:top_n]]
+    folded = ordered[top_n:]
+    if folded:
+        rows.append(
+            GroupRow(
+                label=OTHER,
+                publications=len({rid for label in folded for rid in sources[label]}),
+                amount=(
+                    None
+                    if measure is Measure.PUBLICATIONS
+                    else sum((amounts[label] for label in folded), ZERO)
+                ),
+                is_other=True,
+            )
+        )
     return Grouping(
         dimension_id=dimension.id,
         dimension_label=dimension.label,
         measure=measure,
         additive=dimension.is_additive(measure),
-        rows=rows,
+        rows=tuple(rows),
     )

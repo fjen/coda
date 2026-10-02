@@ -4,7 +4,7 @@ import itertools
 from datetime import date
 from decimal import Decimal
 
-from coda.contexts.statistics.dto import InstitutionRef, RequestFact
+from coda.contexts.statistics.dto import FundingSourceRef, InstitutionRef, RequestFact
 
 _request_ids = itertools.count(1)
 _publication_ids = itertools.count(100)
@@ -39,3 +39,7 @@ def make_fact(**overrides: object) -> RequestFact:
 
 def institution(name: str) -> InstitutionRef:
     return InstitutionRef(name=name)
+
+
+def source(name: str) -> FundingSourceRef:
+    return FundingSourceRef(name=name)

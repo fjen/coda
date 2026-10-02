@@ -77,6 +77,7 @@ class GroupRow:
     amount: Decimal | None
     is_unknown: bool = False
     is_other: bool = False
+    is_unassigned: bool = False
 
 
 @dataclass(frozen=True, slots=True)
