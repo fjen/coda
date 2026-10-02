@@ -68,9 +68,7 @@ def fetch_funding_requests(
             ),
             Prefetch(
                 "publication__position_set__funding_assignments",
-                queryset=FundingAssignment.objects.select_related(
-                    "funding_source__institution"
-                ),
+                queryset=FundingAssignment.objects.select_related("funding_source__institution"),
             ),
         )
         .distinct()
