@@ -650,7 +650,10 @@ class FundingRequestListFilterForm(forms.Form):
     )
     publication_form = forms.TypedChoiceField(
         coerce=fq.PublicationForm,
-        choices=publication_form_choices,
+        # A non-multiple <select> always displays its first option — without a
+        # blank choice every htmx submit would silently add publication_form=
+        # article and narrow the whole list (pinned in tests/fundingrequests).
+        choices=[("", "-------"), *publication_form_choices],
         required=False,
         label="Publication form",
         widget=forms.Select(attrs={"id": "id_publication_form", "class": "w-100"}),

@@ -8,6 +8,7 @@ A list page opts in by:
   :class:`FilterError` — one message plus the control ids it invalidates.
 """
 
+import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -15,12 +16,18 @@ from typing import Any, ClassVar, Literal, cast
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Model
 from django.http import HttpRequest, HttpResponse, QueryDict
 from django.urls import reverse
 from django.views.generic import TemplateView
 
 from coda.apps.contracts.models import Contract
-from coda.apps.fundingrequests.models import Label
+from coda.apps.fundingrequests.models import FundingOrganization, Label
+from coda.apps.institutions.models import Institution
+from coda.apps.invoices.models import FundingSource
+from coda.apps.journals.models import Journal
+from coda.apps.publications.models import PublicationAttachedConcept
+from coda.apps.publishers.models import Publisher
 from coda.apps.widgets import DateRangeWidget
 from coda.domain.date import DateRange, InvalidDateError, InvalidDateRangeError
 
@@ -267,6 +274,38 @@ def remove_value_url(request: HttpRequest, url_name: str, *, key: str, value: st
     return build_url(url_name, params)
 
 
+def _names_by_pk(
+    model: type[Model], values: Sequence[str], *, name_field: str = "name"
+) -> dict[str, str]:
+    """pk -> display name for the selected values; unparseable ones (stale
+    URLs) stay unresolved and the chip falls back to the raw value."""
+    pks = [value for value in values if value.isdigit()]
+    if not pks:
+        return {}
+    return {
+        str(pk): name for pk, name in model.objects.filter(pk__in=pks).values_list("pk", name_field)
+    }
+
+
+def _concept_names(values: Sequence[str]) -> dict[str, str]:
+    """entity_id -> name for the selected concepts — both concept-typed facets
+    filter ``PublicationAttachedConcept`` rows by ``entity_id``."""
+    ids: list[uuid.UUID] = []
+    for value in values:
+        try:
+            ids.append(uuid.UUID(value))
+        except ValueError:
+            continue
+    if not ids:
+        return {}
+    return {
+        str(entity_id): name
+        for entity_id, name in PublicationAttachedConcept.objects.filter(
+            entity_id__in=ids
+        ).values_list("entity_id", "name")
+    }
+
+
 def build_filter_summary(
     request: HttpRequest,
     labels: Sequence[Label],
@@ -293,7 +332,10 @@ def build_filter_summary(
     # Deferred: fundingrequests.forms imports this module, so its choice lists
     # can only be pulled in at call time.
     from coda.apps.fundingrequests.forms import (
+        cost_type_choices,
+        license_choices,
         payment_status_choices,
+        publication_form_choices,
         publication_state_choices,
     )
 
@@ -310,6 +352,7 @@ def build_filter_summary(
     publication_type = request.GET.get("publication_type")
     if publication_type and publication_type != _DEFAULT_PUBLICATION_TYPE:
         chips.add("publication_type", publication_type, publication_type.title())
+    chips.single("publication_form", labels=dict(publication_form_choices))
 
     chips.multi("publication_states", labels=dict(publication_state_choices))
     chips.date_range(
@@ -320,6 +363,29 @@ def build_filter_summary(
         date_range=date_range,
         error=date_range_error,
     )
+
+    subject_values = request.GET.getlist("subject_area")
+    concept_values = request.GET.getlist("publication_type_concept")
+    concept_names = _concept_names(subject_values + concept_values)
+    chips.multi("subject_area", labels=concept_names)
+    chips.multi("publication_type_concept", labels=concept_names)
+    chips.multi("license", labels=dict(license_choices))
+    chips.multi(
+        "institution",
+        labels=_names_by_pk(Institution, request.GET.getlist("institution")),
+    )
+    chips.multi(
+        "journal",
+        labels=_names_by_pk(Journal, request.GET.getlist("journal"), name_field="title"),
+    )
+    chips.multi("publisher", labels=_names_by_pk(Publisher, request.GET.getlist("publisher")))
+    chips.multi("funder", labels=_names_by_pk(FundingOrganization, request.GET.getlist("funder")))
+    chips.multi(
+        "funding_source",
+        labels=_names_by_pk(FundingSource, request.GET.getlist("funding_source")),
+    )
+    chips.multi("cost_type", labels=dict(cost_type_choices))
+
     chips.single(
         "contract_name",
         labels={str(contract.pk): contract.name for contract in contracts},

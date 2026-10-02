@@ -5,6 +5,7 @@ Each facet gets one criteria test, in the style of
 run ``fundingrequest_query.search`` with a single criterion, assert the set.
 """
 
+import re
 import uuid
 from typing import Any, cast
 
@@ -483,3 +484,12 @@ def test__publication_type_facet__offers_the_wizard_vocabularies_not_the_whole_r
     assert str(subject_concept.entity_id) not in choices
     assert str(registry_only.entity_id) not in choices
 
+
+def test__publication_form_facet__renders_a_blank_first_option() -> None:
+    """A non-multiple ``<select>`` always displays its first option, so without
+    a blank choice every htmx filter submit would silently send
+    ``publication_form=article`` and narrow the whole list."""
+    rendered = str(FundingRequestListFilterForm()["publication_form"])
+
+    assert '<option value=""' in rendered
+    assert re.findall(r'<option value="(?!")[^"]*"[^>]*selected', rendered) == []

@@ -594,6 +594,31 @@ def test__export_home__offers_a_statistics_card(client: Client) -> None:
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__statistics_page__facet_chips__name_values_and_point_back_at_the_page(
+    client: Client,
+) -> None:
+    """The shared rail works here too: the statistics-era facets get named,
+    removable chips on the statistics page, pointing back at this page."""
+    fixture = seed()
+
+    response = cast(
+        TemplateResponse,
+        goto(client, journal=str(fixture.journal.pk), publication_form="monograph"),
+    )
+
+    chips = response.context["active_filters"]
+    assert [chip.text for chip in chips] == [
+        "Monograph",
+        "From 2026-01-01",
+        "To 2026-12-31",
+        fixture.journal.title,
+    ]
+    assert response.context["filter_count"] == 4
+    assert all(chip.remove_url.startswith(reverse("statistics:page")) for chip in chips)
+
+
+@pytest.mark.django_db
 def test__statistics_urls__resolve() -> None:
     assert reverse("statistics:page") == "/statistics/"
     assert reverse("statistics:region") == "/statistics/region/"
