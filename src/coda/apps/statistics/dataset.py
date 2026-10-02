@@ -9,7 +9,6 @@ silently dropped.
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TypeVar
 
 from coda.apps.fundingrequests.models import FundingRequest
 from coda.apps.invoices.mappers._domain import FundingSourceDomainMapper
@@ -30,8 +29,6 @@ ZERO = Decimal("0.00")
 CORRESPONDING_AUTHOR_ROLES = frozenset(
     {Role.CORRESPONDING_AUTHOR.name, Role.SUBMITTING_CORRESPONDING_AUTHOR.name}
 )
-
-_T = TypeVar("_T")
 
 
 def build_facts(
@@ -66,28 +63,18 @@ def _build_fact(request: FundingRequest, report_currency: Currency) -> RequestFa
         publication_id=publication.pk,
         request_date=request.request_date,
         title=publication.title,
-        subject_area=(
-            publication.subject_area.name if publication.subject_area_id else None
-        ),
+        subject_area=(publication.subject_area.name if publication.subject_area_id else None),
         publication_type=(
-            publication.publication_type.name
-            if publication.publication_type_id
-            else None
+            publication.publication_type.name if publication.publication_type_id else None
         ),
         publication_form=publication_form(publication),
         license=publication.license,
         open_access_type=publication.open_access_type,
-        journal=(
-            publication.article_journal.title
-            if publication.article_journal_id
-            else None
-        ),
+        journal=(journal.title if (journal := publication.article_journal) else None),
         publisher=_publisher_name(publication),
         contracts=_unique(
             f"{attached.contract.name} ({attached.contract_year})"
-            for attached in sorted(
-                publication.attached_contracts.all(), key=lambda ac: ac.pk
-            )
+            for attached in sorted(publication.attached_contracts.all(), key=lambda ac: ac.pk)
         ),
         funders=_unique(
             funding.organization.name
@@ -96,7 +83,7 @@ def _build_fact(request: FundingRequest, report_currency: Currency) -> RequestFa
         institutions=_unique(
             InstitutionRef(author.affiliation.name)
             for author in corresponding_authors
-            if author.affiliation_id
+            if author.affiliation is not None
         ),
         no_corresponding_author=not corresponding_authors,
         paid_out_by_cost_type=money.by_cost_type,
@@ -109,10 +96,10 @@ def _build_fact(request: FundingRequest, report_currency: Currency) -> RequestFa
 
 
 def _publisher_name(publication: Publication) -> str | None:
-    if publication.article_journal_id:
-        return publication.article_journal.publisher.name
-    if publication.monograph_publisher_id:
-        return publication.monograph_publisher.name
+    if (journal := publication.article_journal) is not None:
+        return journal.publisher.name
+    if (monograph_publisher := publication.monograph_publisher) is not None:
+        return monograph_publisher.name
     return None
 
 
@@ -139,9 +126,7 @@ def _money_of(request: FundingRequest, report_currency: Currency) -> _Money:
     positions = sorted(request.publication.position_set.all(), key=lambda p: p.pk)
     for position in positions:
         money.has_invoice = True
-        rate = _conversion_rate(
-            position.invoice, Currency[position.cost_currency], report_currency
-        )
+        rate = _conversion_rate(position.invoice, Currency[position.cost_currency], report_currency)
         if rate is None:
             unconvertible_invoices.add(position.invoice_id)
             continue
@@ -171,9 +156,9 @@ def _add_position(
     for assignment in sorted(position.funding_assignments.all(), key=lambda a: a.pk):
         if assignment.funding_source is None:
             continue  # a row without a source belongs to the remainder
-        amount = gross_assignment(
-            assignment.amount, tax_rate, currency, is_vat=is_vat
-        ).convert_to(report_currency, exchange)
+        amount = gross_assignment(assignment.amount, tax_rate, currency, is_vat=is_vat).convert_to(
+            report_currency, exchange
+        )
         source = FundingSourceDomainMapper.map(assignment.funding_source)
         ref = FundingSourceRef(source.name)
         money.funded_by[ref] = money.funded_by.get(ref, ZERO) + amount.amount
@@ -208,7 +193,7 @@ def _fixed_exchange(rate: Decimal) -> CurrencyExchange:
     return _exchange
 
 
-def _unique(values: Iterable[_T]) -> tuple[_T, ...]:
+def _unique[T](values: Iterable[T]) -> tuple[T, ...]:
     """Distinct values, in order — a repeated dimension counts a request once
     per value, not once per author row (ADR-0007)."""
     return tuple(dict.fromkeys(values))
