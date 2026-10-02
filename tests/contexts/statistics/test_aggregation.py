@@ -233,3 +233,59 @@ def test__group_by_non_additive__other_row_counts_each_request_once() -> None:
     ]
     assert not grouping.additive
     assert grouping.total() is None
+
+
+@pytest.mark.parametrize(
+    ("dimension_id", "field", "value", "expected"),
+    [
+        ("subject_area", "subject_area", "Computer science", ["Computer science"]),
+        ("publication_type", "publication_type", "book chapter", ["book chapter"]),
+        ("publication_form", "publication_form", "monograph", ["monograph"]),
+        ("license", "license", "cc-zero", ["cc-zero"]),
+        ("open_access_type", "open_access_type", "hybrid", ["hybrid"]),
+        ("journal", "journal", "Journal of Tests", ["Journal of Tests"]),
+    ],
+)
+def test__single_valued_dimensions__group_by_their_own_attribute(
+    dimension_id: str, field: str, value: str, expected: list[str]
+) -> None:
+    fact = make_fact(**{"publisher": "not-this", "subject_area": "not-that", field: value})
+
+    grouping = group_by((fact,), dimensions.by_id(dimension_id), measure=Measure.PUBLICATIONS)
+
+    assert [r.label for r in grouping.rows] == expected
+
+
+def test__group_by_contract__counts_the_request_and_its_money_under_each_contract() -> None:
+    fact = make_fact(contracts=("Deal 2026", "DFG 2024"), paid_out_total=Decimal("100.00"))
+
+    publications = group_by((fact,), dimensions.by_id("contract"), measure=Measure.PUBLICATIONS)
+    spend = group_by((fact,), dimensions.by_id("contract"), measure=Measure.PAID_OUT)
+
+    assert [(r.label, r.publications) for r in publications.rows] == [
+        ("DFG 2024", 1),
+        ("Deal 2026", 1),
+    ]
+    assert [(r.label, r.amount) for r in spend.rows] == [
+        ("DFG 2024", Decimal("100.00")),
+        ("Deal 2026", Decimal("100.00")),
+    ]
+    assert not publications.additive
+    assert spend.total() is None
+
+
+def test__registry__covers_the_twelve_dimensions_of_the_spec_table() -> None:
+    assert {d.id for d in dimensions.DIMENSIONS} == {
+        "institution",
+        "subject_area",
+        "publication_type",
+        "publication_form",
+        "license",
+        "open_access_type",
+        "journal",
+        "publisher",
+        "cost_type",
+        "contract",
+        "funder",
+        "funding_source",
+    }

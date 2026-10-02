@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
-from typing import Mapping
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,3 +102,37 @@ class Grouping:
         if self.measure is Measure.PUBLICATIONS:
             return sum(row.publications for row in self.rows)
         return sum((row.amount or Decimal("0") for row in self.rows), Decimal("0"))
+
+
+@dataclass(frozen=True, slots=True)
+class Headline:
+    """The headline row of the statistics page (plan §9)."""
+
+    publications: int
+    spend: Decimal
+    requests_without_invoice: int
+    requests_unconvertible: int
+
+
+@dataclass(frozen=True, slots=True)
+class ChartSpec:
+    """One dimension + measure: the figure JSON ``Plotly.newPlot`` consumes and the
+    exact values behind it, so the template can render its table without plotly (§9).
+    """
+
+    dimension_id: str
+    measure: Measure
+    title: str
+    additive: bool
+    note: str | None  # the non-additive note shown where a total would go (ADR-0007)
+    total: Decimal | int | None
+    rows: tuple[GroupRow, ...]
+    figure: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class StatisticsReport:
+    """One statistics view end to end — the seam the PDF renderer reuses (plan §13)."""
+
+    headline: Headline
+    charts: tuple[ChartSpec, ...]

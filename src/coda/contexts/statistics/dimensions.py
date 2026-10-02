@@ -76,16 +76,37 @@ def _paid_out_under_each(labels: tuple[str, ...], fact: RequestFact) -> tuple[Co
     return tuple(Contribution(label, fact.paid_out_total) for label in labels)
 
 
-PUBLISHER = Dimension(
-    id="publisher",
-    label="Publisher",
-    kind=DimensionKind.SINGLE,
-    has_publications=True,
-    additive_publications=True,
-    money=Measure.PAID_OUT,
-    additive_spend=True,
-    contributions=lambda fact: (Contribution(_known(fact.publisher), fact.paid_out_total),),
+def _single_value_paid_out(
+    dimension_id: str, label: str, value: Callable[[RequestFact], str | None]
+) -> Dimension:
+    """A single-valued publication attribute partitions requests: both measures add up."""
+    return Dimension(
+        id=dimension_id,
+        label=label,
+        kind=DimensionKind.SINGLE,
+        has_publications=True,
+        additive_publications=True,
+        money=Measure.PAID_OUT,
+        additive_spend=True,
+        contributions=lambda fact: (Contribution(_known(value(fact)), fact.paid_out_total),),
+    )
+
+
+SUBJECT_AREA = _single_value_paid_out(
+    "subject_area", "Subject area", lambda fact: fact.subject_area
 )
+PUBLICATION_TYPE = _single_value_paid_out(
+    "publication_type", "Publication type", lambda fact: fact.publication_type
+)
+PUBLICATION_FORM = _single_value_paid_out(
+    "publication_form", "Publication form", lambda fact: fact.publication_form
+)
+LICENSE = _single_value_paid_out("license", "License", lambda fact: fact.license)
+OPEN_ACCESS_TYPE = _single_value_paid_out(
+    "open_access_type", "Open access type", lambda fact: fact.open_access_type
+)
+JOURNAL = _single_value_paid_out("journal", "Journal", lambda fact: fact.journal)
+PUBLISHER = _single_value_paid_out("publisher", "Publisher", lambda fact: fact.publisher)
 
 INSTITUTION = Dimension(
     id="institution",
@@ -98,6 +119,17 @@ INSTITUTION = Dimension(
     contributions=lambda fact: _paid_out_under_each(
         tuple(ref.name for ref in fact.institutions) or (UNKNOWN,), fact
     ),
+)
+
+CONTRACT = Dimension(
+    id="contract",
+    label="Contract",
+    kind=DimensionKind.REPEATED,
+    has_publications=True,
+    additive_publications=False,
+    money=Measure.PAID_OUT,
+    additive_spend=False,
+    contributions=lambda fact: _paid_out_under_each(fact.contracts, fact),
 )
 
 COST_TYPE = Dimension(
@@ -139,9 +171,16 @@ FUNDING_SOURCE = Dimension(
 )
 
 DIMENSIONS: tuple[Dimension, ...] = (
-    PUBLISHER,
     INSTITUTION,
+    SUBJECT_AREA,
+    PUBLICATION_TYPE,
+    PUBLICATION_FORM,
+    LICENSE,
+    OPEN_ACCESS_TYPE,
+    JOURNAL,
+    PUBLISHER,
     COST_TYPE,
+    CONTRACT,
     FUNDER,
     FUNDING_SOURCE,
 )
