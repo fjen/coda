@@ -6,9 +6,10 @@ run ``fundingrequest_query.search`` with a single criterion, assert the set.
 """
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from django.forms import TypedMultipleChoiceField
 from django.utils.datastructures import MultiValueDict
 
 from coda.apps.fundingrequests import fundingrequest_query
@@ -375,8 +376,11 @@ def test__facet_get_params__search_criteria__produces_the_matching_criteria() ->
     subject_vocabulary = modelfactory.vocabulary()
     concept = modelfactory.concept(subject_vocabulary)
     GlobalPreferences.set_subject_classification_vocabulary(subject_vocabulary)
+    type_vocabulary = modelfactory.vocabulary()
+    type_concept = modelfactory.concept(type_vocabulary)
+    GlobalPreferences.set_article_publication_type_vocabulary(type_vocabulary)
     publication_type_concept = PublicationAttachedConcept.objects.create(
-        name="Research article", vocabulary=subject_vocabulary, entity_id=uuid.uuid4()
+        name=type_concept.name, vocabulary=type_vocabulary, entity_id=type_concept.entity_id
     )
 
     form = FundingRequestListFilterForm(
@@ -443,3 +447,39 @@ def test__unparsable_facet_param__search_criteria__drops_the_facet(param: str, v
     criteria, _ = form.search_criteria()
 
     assert criteria == []
+
+
+@pytest.mark.django_db
+def test__publication_type_facet__offers_the_wizard_vocabularies_not_the_whole_registry() -> None:
+    """The wizard's publication-type step picks its concepts from the configured
+    article and monograph vocabularies (``AllowedConcepts``) — the facet must
+    offer exactly those names, never subject-area concepts or the blank default
+    row that share the ``PublicationAttachedConcept`` registry table."""
+    subject_vocabulary = modelfactory.vocabulary()
+    GlobalPreferences.set_subject_classification_vocabulary(subject_vocabulary)
+    article_vocabulary = modelfactory.vocabulary()
+    monograph_vocabulary = modelfactory.vocabulary()
+    GlobalPreferences.set_article_publication_type_vocabulary(article_vocabulary)
+    GlobalPreferences.set_monograph_publication_type_vocabulary(monograph_vocabulary)
+    subject_concept = subject_vocabulary.concepts.get()
+    article_concept = article_vocabulary.concepts.get()
+    monograph_concept = monograph_vocabulary.concepts.get()
+    blank = modelfactory.concept(vocabulary=monograph_vocabulary)
+    blank.name = ""
+    blank.save()
+    registry_only = PublicationAttachedConcept.objects.create(
+        name="Registry leftover", vocabulary=subject_vocabulary, entity_id=uuid.uuid4()
+    )
+
+    form = FundingRequestListFilterForm()
+    field = cast(TypedMultipleChoiceField, form.fields["publication_type_concept"])
+    choices = dict(field.choices)
+
+    assert choices == {
+        str(article_concept.entity_id): article_concept.name,
+        str(monograph_concept.entity_id): monograph_concept.name,
+    }
+    assert "" not in choices.values()
+    assert str(subject_concept.entity_id) not in choices
+    assert str(registry_only.entity_id) not in choices
+

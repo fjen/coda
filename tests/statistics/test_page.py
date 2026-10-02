@@ -1,5 +1,4 @@
 import hashlib
-import uuid
 from decimal import Decimal
 from http import HTTPStatus
 from types import SimpleNamespace
@@ -96,12 +95,14 @@ def _subject_area_from_configured_vocabulary(funded: FundingRequest) -> None:
 
 
 def _named_publication_type(funded: FundingRequest) -> None:
-    """Attach a publication-type concept from the registry — every registry row
-    is a facet choice, so the chart's row is expressible as a list filter."""
+    """Attach a publication-type concept from the vocabulary the facet offers —
+    only those are expressible as list filters, hence only those get links."""
+    GlobalPreferences.get_article_publication_type_vocabulary()  # ensures the default is set
+    vocabulary = GlobalPreferences.objects.get().article_publication_type_vocabulary
+    assert vocabulary is not None
+    concept = modelfactory.concept(vocabulary=vocabulary)
     funded.publication.publication_type = PublicationAttachedConcept.objects.create(
-        name="Research article",
-        vocabulary=funded.publication.subject_area.vocabulary,
-        entity_id=uuid.uuid4(),
+        name=concept.name, vocabulary=vocabulary, entity_id=concept.entity_id
     )
     funded.publication.save()
 

@@ -35,7 +35,6 @@ from coda.apps.listfilters import (
 )
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.dto import ContractYearDto
-from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.publishers.models import Publisher
 from coda.apps.widgets import (
     PublicationTypeRadioSelect,
@@ -398,6 +397,27 @@ publication_form_choices = [(form.value, form.value.title()) for form in fq.Publ
 cost_type_choices = [(ct.value, ct.value) for ct in PublicationCostType]
 
 
+def publication_type_vocabulary_choices() -> list[tuple[str, str]]:
+    """The concepts the wizard's publication-type step offers — the configured
+    article and monograph vocabularies (``AllowedConcepts`` reads the very same
+    ``GlobalPreferences`` rows; the facet cannot know the entity kind, so it
+    offers both). Blank names — the default concept row — select nothing. The
+    rest of the ``PublicationAttachedConcept`` registry (subject-area concepts
+    in particular) is deliberately not offered."""
+    vocabularies = GlobalPreferences.preloaded()
+    concepts = [
+        *vocabularies.get_article_publication_type_vocabulary().concepts,
+        *vocabularies.get_monograph_publication_type_vocabulary().concepts,
+    ]
+    return list(
+        {
+            str(concept.id): concept.name
+            for concept in sorted(concepts, key=lambda concept: concept.name)
+            if concept.name
+        }.items()
+    )
+
+
 def parse_label_ids(values: Iterable[str]) -> set[int]:
     """Parse label ids from query values, ignoring non-integer values."""
     ids = set()
@@ -610,12 +630,7 @@ class FundingRequestListFilterForm(forms.Form):
     )
     publication_type_concept = forms.TypedMultipleChoiceField(
         coerce=uuid.UUID,
-        choices=lambda: list(
-            {
-                str(concept.entity_id): concept.name
-                for concept in PublicationAttachedConcept.objects.order_by("name")
-            }.items()
-        ),
+        choices=publication_type_vocabulary_choices,
         required=False,
         label="Publication type",
         widget=SearchSelectMultiWidget(

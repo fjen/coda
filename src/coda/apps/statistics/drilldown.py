@@ -24,7 +24,6 @@ from coda.apps.invoices.models import FundingSource
 from coda.apps.journals.models import Journal
 from coda.apps.listfilters import build_url
 from coda.apps.preferences.models import GlobalPreferences
-from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.publishers.models import Publisher
 from coda.contexts.statistics.dto import GroupRow
 from coda.domain.publication import License, OpenAccessType
@@ -120,6 +119,22 @@ class DrilldownLinks:
 
 
 def _lookup_tables() -> dict[str, dict[str, list[str]]]:
+    """Chart label -> facet values. Concept-typed dimensions key off the
+    configured vocabularies, not the raw concept registry: a row whose concept
+    the shared form would reject as an invalid choice must not get a link that
+    silently widens the chart's set (§2 #7)."""
+    vocabularies = GlobalPreferences.preloaded()
+    # Keyed by concept id: a concept configured for both vocabularies is one
+    # facet value, not two.
+    publication_type_concepts = {
+        concept.id: concept.name
+        for vocabulary in (
+            vocabularies.get_article_publication_type_vocabulary(),
+            vocabularies.get_monograph_publication_type_vocabulary(),
+        )
+        for concept in vocabulary.concepts
+        if concept.name
+    }
     return {
         "institution": _group_pks(Institution.objects.values_list("pk", "name")),
         "journal": _group_pks(Journal.objects.values_list("pk", "title")),
@@ -131,7 +146,7 @@ def _lookup_tables() -> dict[str, dict[str, list[str]]]:
             for concept in GlobalPreferences.get_subject_classification_vocabulary().concepts
         },
         "publication_type": _group_pks(
-            PublicationAttachedConcept.objects.values_list("entity_id", "name")
+            (str(concept_id), name) for concept_id, name in publication_type_concepts.items()
         ),
         "license": {license.name: [license.value] for license in License},
         "open_access_type": {access.name: [access.value] for access in OpenAccessType},
