@@ -1,4 +1,5 @@
 import hashlib
+import re
 from decimal import Decimal
 from http import HTTPStatus
 from types import SimpleNamespace
@@ -12,7 +13,10 @@ from django.test.html import parse_html
 from django.urls import reverse
 from django.utils import timezone
 
-from coda.apps.fundingrequests.forms import FundingRequestListFilterForm
+from coda.apps.fundingrequests.forms import (
+    _FACET_CHOICE_LIMIT,
+    FundingRequestListFilterForm,
+)
 from coda.apps.fundingrequests.models import FundingRequest
 from coda.apps.invoices.models import Invoice
 from coda.apps.preferences.models import GlobalPreferences
@@ -623,3 +627,29 @@ def test__statistics_page__facet_chips__name_values_and_point_back_at_the_page(
 def test__statistics_urls__resolve() -> None:
     assert reverse("statistics:page") == "/statistics/"
     assert reverse("statistics:region") == "/statistics/region/"
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__statistics_page__registry_size_journal_table__renders_capped_rail(
+    client: Client,
+) -> None:
+    """Real installations have tens of thousands of journals and publishers;
+    enumerating them all as rail <option>s OOM-killed the container on the
+    first page load. Each capped facet must render at most the cap, with the
+    hidden search inputs the server-side narrowing round-trips through."""
+    publisher = modelfactory.publisher(name="Shared publisher")
+    for index in range(_FACET_CHOICE_LIMIT + 150):
+        modelfactory.journal(publisher_id=publisher.pk, title=f"Journal {index:04d}")
+
+    response = goto(client)
+
+    assert response.status_code == HTTPStatus.OK
+    html = response.content.decode()
+    for facet in ("journal", "publisher"):
+        widget = re.search(
+            rf'<search-select-multi id="id_{facet}"[\s\S]*?</search-select-multi>', html
+        )
+        assert widget is not None, facet
+        assert widget.group(0).count("<option") <= _FACET_CHOICE_LIMIT, facet
+        assert f'name="{facet}_q"' in widget.group(0), facet

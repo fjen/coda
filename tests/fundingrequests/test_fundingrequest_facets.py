@@ -15,7 +15,7 @@ from django.utils.datastructures import MultiValueDict
 
 from coda.apps.fundingrequests import fundingrequest_query
 from coda.apps.fundingrequests import fundingrequest_query as fq
-from coda.apps.fundingrequests.forms import FundingRequestListFilterForm
+from coda.apps.fundingrequests.forms import _FACET_CHOICE_LIMIT, FundingRequestListFilterForm
 from coda.apps.fundingrequests.fundingrequest_query import (
     CostTypeCriteria,
     FunderCriteria,
@@ -504,3 +504,82 @@ def test__publication_form_facet__renders_a_blank_first_option() -> None:
 
     assert '<option value=""' in rendered
     assert re.findall(r'<option value="(?!")[^"]*"[^>]*selected', rendered) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("facet", ["journal", "publisher"])
+def test__registry_scale_facet__renders_the_cap_and_a_hidden_query_input(
+    facet: str,
+) -> None:
+    """A real journal table has tens of thousands of rows; enumerating them
+    all as <option>s exhausted the container on the statistics page. The
+    facet must render at most the cap, in alphabetical order, plus the
+    ``<facet>_q`` hidden input the rail's htmx round-trip searches with."""
+    names = [f"Facet {index:03d}" for index in range(_FACET_CHOICE_LIMIT + 20)]
+    if facet == "journal":
+        publisher = modelfactory.publisher(name="Shared publisher")
+        for name in names:
+            modelfactory.journal(publisher_id=publisher.pk, title=name)
+    else:
+        for name in names:
+            modelfactory.publisher(name=name)
+    form = FundingRequestListFilterForm(MultiValueDict())
+
+    rendered = str(form[facet])
+
+    options = re.findall(r'<option[^>]*?value="(\d+)"[^>]*>([^<]+)</option>', rendered)
+    assert len(options) == _FACET_CHOICE_LIMIT
+    titles = [title for _, title in options]
+    assert titles == names[:_FACET_CHOICE_LIMIT]
+    assert names[_FACET_CHOICE_LIMIT] not in rendered
+    assert "remote-search" in rendered
+    assert re.search(rf'<input[^>]*?type="hidden"[^>]*?name="{facet}_q"[^>]*?>', rendered)
+
+
+@pytest.mark.django_db
+def test__journal_facet__query_narrows_options_and_selection_survives_the_cap() -> None:
+    """``journal_q`` searches server-side; a journal selected from a previous
+    (wider) listing stays rendered and valid even when it falls outside the
+    cap of the currently narrowed choices."""
+    publisher = modelfactory.publisher(name="Shared publisher")
+    for index in range(_FACET_CHOICE_LIMIT + 20):
+        modelfactory.journal(publisher_id=publisher.pk, title=f"Alpha {index:03d}")
+    selected = modelfactory.journal(publisher_id=publisher.pk, title="Zebra selected")
+    modelfactory.journal(publisher_id=publisher.pk, title="Journal omega")
+    modelfactory.journal(publisher_id=publisher.pk, title="Omega two")
+
+    narrowed = FundingRequestListFilterForm(MultiValueDict({"journal_q": ["omega"]}))
+    rendered = str(narrowed["journal"])
+    options = re.findall(r"<option[^>]*>([^<]+)</option>", rendered)
+    assert options == ["Journal omega", "Omega two"]
+    assert 'data-q="omega"' in rendered
+    assert re.search(r'<input[^>]*?name="journal_q"[^>]*?value="omega"', rendered)
+
+    far = FundingRequestListFilterForm(MultiValueDict({"journal": [str(selected.pk)]}))
+    assert far.is_valid()
+    assert far.errors == {}
+    assert re.search(
+        rf'<option[^>]*?value="{selected.pk}"[^>]*>{re.escape(selected.title)}<',
+        str(far["journal"]),
+    )
+
+
+@pytest.mark.django_db
+def test__journal_facet__garbage_selection__reports_an_error_not_a_crash() -> None:
+    """Selection coercion runs during form construction, before validation;
+    Unicode digits ('²') or letters in the URL must surface as a field error,
+    not a 500."""
+    form = FundingRequestListFilterForm(MultiValueDict({"journal": ["²", "abc"]}))
+
+    assert not form.is_valid()
+    assert "journal" in form.errors
+
+
+def test__journal_query_param__is_not_a_search_criterion() -> None:
+    """``journal_q`` only narrows the facet's rendered options; the query
+    itself is unaffected — and constructing the form must not touch the DB."""
+    form = FundingRequestListFilterForm(MultiValueDict({"journal_q": ["omega"]}))
+
+    criteria, _ = form.search_criteria()
+
+    assert criteria == []
