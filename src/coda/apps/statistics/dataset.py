@@ -91,6 +91,7 @@ def _build_fact(request: FundingRequest, report_currency: Currency) -> RequestFa
         funded_by=money.funded_by,
         unassigned=money.unassigned,
         invoices_without_rate=money.invoices_without_rate,
+        unconvertible_invoice_ids=money.unconvertible_invoice_ids,
         has_invoice=money.has_invoice,
     )
 
@@ -110,6 +111,7 @@ class _Money:
     funded_by: dict[FundingSourceRef, Decimal] = field(default_factory=dict)
     unassigned: Decimal = ZERO
     invoices_without_rate: int = 0
+    unconvertible_invoice_ids: tuple[int, ...] = ()
     has_invoice: bool = False
 
 
@@ -132,6 +134,7 @@ def _money_of(request: FundingRequest, report_currency: Currency) -> _Money:
             continue
         _add_position(money, position, report_currency, rate)
     money.invoices_without_rate = len(unconvertible_invoices)
+    money.unconvertible_invoice_ids = tuple(sorted(unconvertible_invoices))
     return money
 
 

@@ -113,7 +113,8 @@ def budget(name: str) -> Budget:
 def invoice(
     positions: list[Position],
     conversions: dict[Currency, Decimal] | None = None,
-) -> None:
+) -> int:
+    """Save an invoice over the given positions; returns its pk."""
     creditor = modelfactory.creditor()
     saved = Invoice.new(
         number=uuid.uuid4().hex,
@@ -124,3 +125,4 @@ def invoice(
     for currency, rate in (conversions or {}).items():
         saved.add_conversion(rate, currency)
     saved.id = invoice_service.save(saved)
+    return saved.id

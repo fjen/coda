@@ -124,7 +124,7 @@ def test__invoice_without_conversion_rate__build_facts__excludes_amount_and_coun
     unconvertible = helpers.position(
         fr.publication_id, Decimal("100.00"), Decimal("0.19"), currency=Currency.USD
     )
-    helpers.invoice([unconvertible])
+    unconvertible_invoice = helpers.invoice([unconvertible])
     convertible = helpers.position(fr.publication_id, Decimal("100.00"), Decimal("0.00"))
     helpers.invoice([convertible])
 
@@ -132,6 +132,7 @@ def test__invoice_without_conversion_rate__build_facts__excludes_amount_and_coun
 
     assert fact.paid_out_total == Decimal("100.00")
     assert fact.invoices_without_rate == 1
+    assert fact.unconvertible_invoice_ids == (unconvertible_invoice,)
     assert fact.has_invoice is True
 
 

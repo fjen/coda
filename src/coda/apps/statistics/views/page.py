@@ -7,6 +7,7 @@ funding request list. The filter rail, chips and region mechanics are the
 funding request list's own — reused through ``partials/filter_layout.html``.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -26,6 +27,7 @@ from coda.apps.fundingrequests.forms import (
     parse_label_ids,
 )
 from coda.apps.fundingrequests.models import Label
+from coda.apps.invoices.models import Invoice
 from coda.apps.listfilters import ListRegionMixin, build_filter_summary, build_url
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.statistics import queries
@@ -33,7 +35,7 @@ from coda.apps.statistics.dataset import build_facts
 from coda.apps.statistics.drilldown import DrilldownLinks
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
-from coda.contexts.statistics.dto import ChartSpec, Measure, StatisticsReport
+from coda.contexts.statistics.dto import ChartSpec, Measure, RequestFact, StatisticsReport
 
 _PAGE_URL = "statistics:page"
 _REGION_URL = "statistics:region"
@@ -54,6 +56,15 @@ class ChartRow:
     publications: int
     amount: Decimal | None
     link: str | None
+
+
+@dataclass(frozen=True)
+class IncompleteInvoice:
+    """An invoice whose positions lacked a rate into the report currency; the
+    currency-incomplete notice links to each one (plan §9, §10)."""
+
+    pk: int
+    number: str
 
 
 @dataclass(frozen=True)
@@ -137,6 +148,7 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
         "filter_clear_url": reverse(_PAGE_URL),
         "filter_list_id": _REGION_ELEMENT_ID,
         "headline": report.headline,
+        "incomplete_invoices": _incomplete_invoices(facts),
         "sections": _sections(report, DrilldownLinks.build(request)),
     }
 
@@ -194,3 +206,15 @@ def _figure_with_height(spec: ChartSpec) -> dict[str, Any]:
         "height": _CHART_BASE_PX + _CHART_ROW_PX * len(spec.rows),
     }
     return {**spec.figure, "layout": layout}
+
+
+def _incomplete_invoices(facts: Sequence[RequestFact]) -> tuple[IncompleteInvoice, ...]:
+    """The invoices behind the excluded amounts, deduplicated and ordered —
+    the notice names the affected requests' invoices, not just their count."""
+    ids = {invoice_id for fact in facts for invoice_id in fact.unconvertible_invoice_ids}
+    if not ids:
+        return ()
+    return tuple(
+        IncompleteInvoice(pk=invoice.pk, number=invoice.number)
+        for invoice in Invoice.objects.filter(pk__in=ids).order_by("number")
+    )

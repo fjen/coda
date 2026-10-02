@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from coda.apps.fundingrequests.models import FundingRequest
+from coda.apps.invoices.models import Invoice
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
 from coda.contexts.statistics.dimensions import DIMENSIONS
@@ -55,7 +56,7 @@ def seed() -> SimpleNamespace:
         Decimal("0.19"),
         currency=Currency.USD,
     )
-    helpers.invoice([foreign])
+    unconvertible_invoice = helpers.invoice([foreign])
 
     journal = publication.article_journal
     attached = publication.attached_contracts.get()
@@ -71,6 +72,7 @@ def seed() -> SimpleNamespace:
         funder=funded.external_funding.get().organization,
         subject_area=publication.subject_area,
         publication_type=publication.publication_type,
+        unconvertible_invoice=unconvertible_invoice,
     )
 
 
@@ -239,12 +241,24 @@ def test__statistics_page__headline__counts_publications_spend_and_provenance(
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
-def test__statistics_page__headline__links_to_the_invoices(client: Client) -> None:
-    seed()
+def test__statistics_page__currency_incomplete_notice__counts_requests_and_links_invoices(
+    client: Client,
+) -> None:
+    """The page states how many requests lost amounts and links each one's
+    invoices (plan §9, §10 Q21)."""
+    fixture = seed()
 
-    html = goto(client).content.decode()
+    response = goto(client)
 
-    assert reverse("invoices:list") in html
+    number = Invoice.objects.get(pk=fixture.unconvertible_invoice).number
+    assert [(i.pk, i.number) for i in response.context["incomplete_invoices"]] == [
+        (fixture.unconvertible_invoice, number)
+    ]
+
+    html = " ".join(response.content.decode().split())
+    assert reverse("invoices:detail", args=[fixture.unconvertible_invoice]) in html
+    assert number in html
+    assert "1 request with excluded amounts" in html
     assert "Requests with excluded amounts" in html
 
 

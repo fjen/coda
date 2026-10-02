@@ -58,6 +58,7 @@ class RequestFact:
     unassigned: Decimal
     # provenance (ADR-0003)
     invoices_without_rate: int
+    unconvertible_invoice_ids: tuple[int, ...]
     has_invoice: bool
 
 

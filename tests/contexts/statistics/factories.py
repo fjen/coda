@@ -32,6 +32,7 @@ def make_fact(**overrides: object) -> RequestFact:
         "funded_by": {},
         "unassigned": Decimal(0),
         "invoices_without_rate": 0,
+        "unconvertible_invoice_ids": (),
         "has_invoice": True,
     }
     return RequestFact(**{**defaults, **overrides})  # type: ignore[arg-type]

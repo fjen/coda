@@ -21,10 +21,20 @@
     <article class="statistics-headline-card">
         <h4>Requests with excluded amounts</h4>
         <p class="statistics-headline-value">{{ headline.requests_unconvertible }}</p>
-        <small>no rate in the report currency (ADR-0003) —
-            <a href="{% url 'invoices:list' %}">review invoices</a></small>
+        <small>no rate in the report currency (ADR-0003)</small>
     </article>
 </div>
+{% if incomplete_invoices %}
+    <div class="statistics-notice" role="note">
+        {{ headline.requests_unconvertible }}
+        {{ headline.requests_unconvertible|pluralize:"request,requests" }}
+        with excluded amounts — no conversion rate in the report currency
+        (ADR-0003), the amounts are not in spend:
+        {% for invoice in incomplete_invoices %}
+            <a href="{% url 'invoices:detail' invoice.pk %}">{{ invoice.number }}</a>{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
 {% for section in sections %}
     <section class="statistics-section" id="statistics-{{ section.dimension_id }}">
         <h3>{{ section.label }}</h3>
