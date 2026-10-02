@@ -1,8 +1,10 @@
 """Grouping facts by dimension (plan §4, §7; ADR-0007).
 
 Pure: takes RequestFact values, returns Grouping values. Repeated dimensions count a
-fact in full under every one of its values; the additive flag on the result tells the
-page it must not print a total for such rows.
+fact in full under every one of its values; the non-additive flags on the result tell
+the page it must not print a total for such rows. One grouping per dimension carries
+*all* supported measures per row, so a facet renders one reconciling table and its
+charts share exactly its row set.
 """
 
 from collections.abc import Sequence
@@ -11,18 +13,17 @@ from decimal import Decimal
 from coda.contexts.statistics.dimensions import OTHER, UNASSIGNED, UNKNOWN, ZERO, Dimension
 from coda.contexts.statistics.dto import Grouping, GroupRow, Measure, RequestFact
 
-DEFAULT_TOP_N = 15
+DEFAULT_TOP_N = 10
 
 
 def group_by(
     facts: Sequence[RequestFact],
     dimension: Dimension,
     *,
-    measure: Measure,
     top_n: int = DEFAULT_TOP_N,
 ) -> Grouping:
-    if measure not in dimension.measures():
-        raise ValueError(f"dimension {dimension.id!r} has no {measure!r} measure")
+    spend = dimension.money
+    counts_values = Measure.PUBLICATIONS in dimension.measures()
 
     counts: dict[str, int] = {}
     amounts: dict[str, Decimal] = {}
@@ -32,38 +33,47 @@ def group_by(
         for label in dict.fromkeys(contribution.label for contribution in contributions):
             counts[label] = counts.get(label, 0) + 1
             sources.setdefault(label, set()).add(fact.request_id)
-        if measure is not Measure.PUBLICATIONS:
-            for contribution in contributions:
-                amounts[contribution.label] = (
-                    amounts.get(contribution.label, ZERO) + contribution.amount
-                )
-
-    def value(label: str) -> Decimal:
-        if measure is Measure.PUBLICATIONS:
-            return Decimal(counts[label])
-        return amounts[label]
+        for contribution in contributions:
+            amounts[contribution.label] = (
+                amounts.get(contribution.label, ZERO) + contribution.amount
+            )
 
     def row(label: str) -> GroupRow:
         return GroupRow(
             label=label,
             publications=counts[label],
-            amount=None if measure is Measure.PUBLICATIONS else amounts[label],
+            amount=amounts[label] if spend is not None else None,
             is_unknown=label == UNKNOWN,
             is_unassigned=label == UNASSIGNED,
         )
 
-    ordered = sorted(counts, key=lambda label: (-value(label), label))
-    rows = [row(label) for label in ordered[:top_n]]
-    folded = ordered[top_n:]
+    def rank(label: str) -> tuple[Decimal, int, str]:
+        # Money leads the ranking — this is a funding report, and paid-out
+        # entities must never be pushed off the visible top by ones that were
+        # funded but paid nothing (no invoice, unconvertible amounts per
+        # ADR-0003); those rank by count below them. A dimension without a
+        # count measure (cost type) ranks purely by money.
+        amount = -amounts.get(label, ZERO) if spend is not None else ZERO
+        publications = -counts[label] if counts_values else 0
+        return (amount, publications, label)
+
+    # Without a count column, a zero-money row could show nothing at all —
+    # it is noise (cf. UNASSIGNED, contributed only when non-zero).
+    labels = sorted(
+        (label for label in counts if counts_values or amounts.get(label, ZERO) != ZERO),
+        key=rank,
+    )
+    rows = [row(label) for label in labels[:top_n]]
+    folded = labels[top_n:]
     if folded:
         rows.append(
             GroupRow(
                 label=OTHER,
                 publications=len({rid for label in folded for rid in sources[label]}),
                 amount=(
-                    None
-                    if measure is Measure.PUBLICATIONS
-                    else sum((amounts[label] for label in folded), ZERO)
+                    sum((amounts[label] for label in folded), ZERO)
+                    if spend is not None
+                    else None
                 ),
                 is_other=True,
             )
@@ -71,7 +81,9 @@ def group_by(
     return Grouping(
         dimension_id=dimension.id,
         dimension_label=dimension.label,
-        measure=measure,
-        additive=dimension.is_additive(measure),
+        measures=dimension.measures(),
+        non_additive=frozenset(
+            measure for measure in dimension.measures() if not dimension.is_additive(measure)
+        ),
         rows=tuple(rows),
     )

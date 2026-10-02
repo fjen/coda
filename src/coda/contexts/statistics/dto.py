@@ -84,24 +84,26 @@ class GroupRow:
 
 @dataclass(frozen=True, slots=True)
 class Grouping:
-    """The result of grouping facts by one dimension for one measure."""
+    """The result of grouping facts by one dimension across its measures: one
+    row per dimension value carrying every measure the dimension supports, so
+    a facet renders one reconciling table and its charts share its row set."""
 
     dimension_id: str
     dimension_label: str
-    measure: Measure
-    additive: bool
+    measures: tuple[Measure, ...]
+    non_additive: frozenset[Measure]
     rows: tuple[GroupRow, ...]
 
-    def total(self) -> Decimal | int | None:
-        """The grand total, or None for non-additive dimensions.
+    def total(self, measure: Measure) -> Decimal | int | None:
+        """The grand total for one measure, or None for a non-additive one.
 
-        Rows of a non-additive grouping deliberately sum to more than the request
-        total, so no total may be shown (ADR-0007); the page shows the non-additive
-        note instead.
+        Rows of a non-additive measure deliberately sum to more than the
+        request total, so no total may be shown (ADR-0007); the page shows
+        the non-additive note instead.
         """
-        if not self.additive:
+        if measure in self.non_additive:
             return None
-        if self.measure is Measure.PUBLICATIONS:
+        if measure is Measure.PUBLICATIONS:
             return sum(row.publications for row in self.rows)
         return sum((row.amount or Decimal(0) for row in self.rows), Decimal(0))
 

@@ -22,7 +22,12 @@ from coda.apps.invoices.models import Invoice
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.statistics.drilldown import facet_param_names
-from coda.apps.statistics.views.page import ChartPanel, ChartRow, DimensionSection
+from coda.apps.statistics.views.page import (
+    ChartPanel,
+    DimensionRow,
+    DimensionSection,
+    MeasureColumn,
+)
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import Measure
@@ -59,8 +64,14 @@ def seed() -> SimpleNamespace:
     position.assign_funding(source, Decimal("600.00"))
     helpers.invoice([position])
 
-    helpers.request("Paper without invoice")
+    # The publication factory randomizes license/open-access type; pin the
+    # licenses so the license round-trip below is deterministic.
+    without_invoice = helpers.request("Paper without invoice")
+    without_invoice.publication.license = License.CC0.name
+    without_invoice.publication.save()
     unconvertible = helpers.request("Paper without rate")
+    unconvertible.publication.license = License.CC_BY_NC_SA.name
+    unconvertible.publication.save()
     foreign = helpers.position(
         unconvertible.publication.pk,
         Decimal("500.00"),
@@ -132,8 +143,12 @@ def publications_chart(section: DimensionSection) -> ChartPanel:
     return next(chart for chart in section.charts if chart.measure is Measure.PUBLICATIONS)
 
 
-def row_by_label(chart: ChartPanel, label: str) -> ChartRow:
-    return next(row for row in chart.rows if row.label == label)
+def row_by_label(section: DimensionSection, label: str) -> DimensionRow:
+    return next(row for row in section.rows if row.label == label)
+
+
+def column(section: DimensionSection, measure: Measure) -> MeasureColumn:
+    return next(col for col in section.columns if col.measure is measure)
 
 
 def query_params(url: str) -> dict[str, list[str]]:
@@ -278,14 +293,28 @@ def test__statistics_page__currency_incomplete_notice__counts_requests_and_links
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
+def test__statistics_page__paid_out_nothing__renders_dash_not_zero(client: Client) -> None:
+    """A funded value that has paid out nothing keeps its row (the count is
+    real) but shows "—" in the spend column — zero-money rows are noise."""
+    seed()
+
+    html = goto(client).content.decode()
+
+    institution = re.search(r'id="statistics-institution"[\s\S]*?</table>', html)
+    assert institution is not None
+    assert "—" in institution.group(0)
+    assert re.search(r">\s*0\.00\s*€", institution.group(0)) is None
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
 def test__statistics_page__additive_dimension__shows_total(client: Client) -> None:
     seed()
 
     response = goto(client)
 
-    chart = amount_chart(sections_by_id(response)["subject_area"])
-    assert chart.note is None
-    assert chart.total == Decimal("1200.00")
+    value_column = column(sections_by_id(response)["subject_area"], Measure.PAID_OUT)
+    assert value_column.note is None
+    assert value_column.total == Decimal("1200.00")
 
 
 @pytest.mark.django_db
@@ -297,10 +326,10 @@ def test__statistics_page__non_additive_dimension__shows_note_instead_of_total(
 
     response = goto(client)
 
-    chart = publications_chart(sections_by_id(response)["institution"])
-    assert chart.total is None
-    assert chart.note is not None
-    assert "ADR-0007" in chart.note
+    value_column = column(sections_by_id(response)["institution"], Measure.PUBLICATIONS)
+    assert value_column.total is None
+    assert value_column.note is not None
+    assert "ADR-0007" in value_column.note
 
 
 @pytest.mark.django_db
@@ -314,71 +343,71 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
     sections = sections_by_id(response)
     list_url = reverse("fundingrequests:list")
 
-    expected: dict[str, tuple[ChartPanel, str, str, str]] = {
+    expected: dict[str, tuple[DimensionSection, str, str, str]] = {
         "journal": (
-            amount_chart(sections["journal"]),
+            sections["journal"],
             fixture.journal.title,
             "journal",
             str(fixture.journal.pk),
         ),
         "publisher": (
-            amount_chart(sections["publisher"]),
+            sections["publisher"],
             fixture.publisher.name,
             "publisher",
             str(fixture.publisher.pk),
         ),
         "institution": (
-            amount_chart(sections["institution"]),
+            sections["institution"],
             fixture.institution.name,
             "institution",
             str(fixture.institution.pk),
         ),
         "funder": (
-            publications_chart(sections["funder"]),
+            sections["funder"],
             fixture.funder.name,
             "funder",
             str(fixture.funder.pk),
         ),
         "subject_area": (
-            publications_chart(sections["subject_area"]),
+            sections["subject_area"],
             fixture.subject_area.name,
             "subject_area",
             str(fixture.subject_area.entity_id),
         ),
         "publication_type": (
-            publications_chart(sections["publication_type"]),
+            sections["publication_type"],
             fixture.publication_type.name,
             "publication_type_concept",
             str(fixture.publication_type.entity_id),
         ),
         "license": (
-            publications_chart(sections["license"]),
+            sections["license"],
             License.CC_BY.name,
             "license",
             License.CC_BY.value,
         ),
         "open_access_type": (
-            publications_chart(sections["open_access_type"]),
+            sections["open_access_type"],
             OpenAccessType.Gold.name,
             "open_access_type",
             OpenAccessType.Gold.value,
         ),
         "publication_form": (
-            publications_chart(sections["publication_form"]),
+            sections["publication_form"],
             "article",
             "publication_form",
             "article",
         ),
-        "cost_type": (amount_chart(sections["cost_type"]), "gold-oa", "cost_type", "gold-oa"),
+        "cost_type": (sections["cost_type"], "gold-oa", "cost_type", "gold-oa"),
         "funding_source": (
-            amount_chart(sections["funding_source"]),
+            sections["funding_source"],
             "Central Fund",
             "funding_source",
             str(fixture.source.id),
         ),
     }
-    for dimension_id, (chart, label, param, value) in expected.items():
-        row = row_by_label(chart, label)
+    for dimension_id, (section, label, param, value) in expected.items():
+        row = row_by_label(section, label)
         assert row.link is not None, dimension_id
         assert row.link.startswith(list_url), dimension_id
         params = query_params(row.link)
@@ -386,9 +415,8 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
         assert params["start_date"] == ["2026-01-01"], dimension_id
         assert params["end_date"] == ["2026-12-31"], dimension_id
 
-    contract_chart = publications_chart(sections["contract"])
     contract_row = row_by_label(
-        contract_chart, f"{fixture.contract.name} ({fixture.contract_year})"
+        sections["contract"], f"{fixture.contract.name} ({fixture.contract_year})"
     )
     assert contract_row.link is not None
     contract_params = query_params(contract_row.link)
@@ -406,9 +434,9 @@ def test__statistics_page__unassigned_and_unknown_rows__have_no_drill_down(
     response = goto(client)
     sections = sections_by_id(response)
 
-    unassigned = row_by_label(amount_chart(sections["funding_source"]), "Unassigned")
+    unassigned = row_by_label(sections["funding_source"], "Unassigned")
     assert unassigned.link is None
-    unknown = row_by_label(publications_chart(sections["institution"]), "Unknown")
+    unknown = row_by_label(sections["institution"], "Unknown")
     assert unknown.link is None
 
 
@@ -425,12 +453,12 @@ def test__statistics_page__publication_without_journal_or_publisher__forms_unkno
     formless.publication.article_journal = None
     formless.publication.save()
 
-    chart = publications_chart(sections_by_id(goto(client))["publication_form"])
-    assert [(row.label, row.publications) for row in chart.rows] == [
+    section = sections_by_id(goto(client))["publication_form"]
+    assert [(row.label, row.publications) for row in section.rows] == [
         ("article", 3),
         ("Unknown", 1),
     ]
-    assert row_by_label(chart, "Unknown").link is None
+    assert row_by_label(section, "Unknown").link is None
 
     articles = client.get(
         reverse("fundingrequests:list"), {**PERIOD, "publication_form": "article"}
@@ -455,10 +483,10 @@ def test__statistics_page__active_filters__narrow_every_chart_and_survive_in_dri
     sections = sections_by_id(response)
 
     # Only the CC-BY request remains, so the additive totals reflect exactly it.
-    assert amount_chart(sections["subject_area"]).total == Decimal("1200.00")
-    assert publications_chart(sections["journal"]).rows[0].publications == 1
+    assert column(sections["subject_area"], Measure.PAID_OUT).total == Decimal("1200.00")
+    assert sections["journal"].rows[0].publications == 1
 
-    journal_link = amount_chart(sections["journal"]).rows[0].link
+    journal_link = sections["journal"].rows[0].link
     assert journal_link is not None
     link_params = query_params(journal_link)
     assert link_params["license"] == [License.CC_BY.value]
@@ -475,41 +503,41 @@ def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_l
     fixture = seed()
     sections = sections_by_id(goto(client))
 
-    cases: dict[str, tuple[ChartPanel, str, str, str]] = {
+    cases: dict[str, tuple[DimensionSection, str, str, str]] = {
         "institution": (
-            amount_chart(sections["institution"]),
+            sections["institution"],
             fixture.institution.name,
             "institution",
             str(fixture.institution.pk),
         ),
         "license": (
-            publications_chart(sections["license"]),
+            sections["license"],
             License.CC_BY.name,
             "license",
             License.CC_BY.value,
         ),
         "journal": (
-            publications_chart(sections["journal"]),
+            sections["journal"],
             fixture.journal.title,
             "journal",
             str(fixture.journal.pk),
         ),
         "publisher": (
-            amount_chart(sections["publisher"]),
+            sections["publisher"],
             fixture.publisher.name,
             "publisher",
             str(fixture.publisher.pk),
         ),
         "funding_source": (
-            amount_chart(sections["funding_source"]),
+            sections["funding_source"],
             "Central Fund",
             "funding_source",
             str(fixture.source.id),
         ),
     }
 
-    for dimension_id, (chart, label, param, value) in cases.items():
-        link = row_by_label(chart, label).link
+    for dimension_id, (section, label, param, value) in cases.items():
+        link = row_by_label(section, label).link
         assert link is not None, dimension_id
         assert query_params(link)[param] == [value], dimension_id
 
@@ -525,10 +553,10 @@ def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_l
 def test__statistics_page__every_dimension__section_measures_and_facet_round_out_the_registry(
     client: Client,
 ) -> None:
-    """§7 completeness: every registry dimension gets its section, one chart per
-    supported measure with the shared measure label, additive charts a total and
-    non-additive ones the ADR-0007 note — and every dimension has a facet whose
-    params the shared form actually accepts (§2 #7 lockstep)."""
+    """§7 completeness: every registry dimension gets its section with one chart
+    per supported measure carrying the shared measure label, table columns with
+    the total for additive measures and the ADR-0007 note otherwise — and every
+    dimension has a facet whose params the shared form actually accepts (§2 #7)."""
     seed()
     form_fields = set(FundingRequestListFilterForm().fields)
     sections = sections_by_id(goto(client))
@@ -540,14 +568,22 @@ def test__statistics_page__every_dimension__section_measures_and_facet_round_out
 
         panels = {chart.measure: chart for chart in section.charts}
         assert set(panels) == set(dimension.measures()), dimension.id
+        # The double-counting prohibitions (plan §7: no publication count by
+        # cost type) live here: value columns are driven strictly by the
+        # registry's measures, never by the grouping's internal per-value
+        # counts.
+        assert {col.measure for col in section.columns} == set(dimension.measures()), (
+            dimension.id,
+        )
         for measure, panel in panels.items():
             assert panel.measure_label == charts.MEASURE_LABELS[measure], dimension.id
+            value_column = column(section, measure)
             if dimension.is_additive(measure):
-                assert panel.total is not None, (dimension.id, measure)
-                assert panel.note is None, (dimension.id, measure)
+                assert value_column.total is not None, (dimension.id, measure)
+                assert value_column.note is None, (dimension.id, measure)
             else:
-                assert panel.total is None, (dimension.id, measure)
-                assert panel.note == charts.NON_ADDITIVE_NOTE, (dimension.id, measure)
+                assert value_column.total is None, (dimension.id, measure)
+                assert value_column.note == charts.NON_ADDITIVE_NOTE, (dimension.id, measure)
 
         facet_params = facet_param_names(dimension.id)
         assert facet_params, dimension.id

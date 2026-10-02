@@ -16,6 +16,7 @@ from coda.contexts.statistics.dimensions import ZERO, Dimension
 from coda.contexts.statistics.dto import (
     ChartSpec,
     Grouping,
+    GroupRow,
     Headline,
     Measure,
     RequestFact,
@@ -34,12 +35,24 @@ NON_ADDITIVE_NOTE = (
 )
 
 
-def build_figure(grouping: Grouping) -> dict[str, Any]:
-    """One horizontal bar figure: dimension rows, measure values, largest on top."""
-    labels = [row.label for row in grouping.rows]
-    figure = go.Figure(go.Bar(x=_row_values(grouping), y=labels, orientation="h"))
+def build_figure(grouping: Grouping, measure: Measure) -> dict[str, Any]:
+    """One horizontal bar figure per measure: the grouping's rows, bars largest
+    first for that measure, the fold row last. Every figure of a dimension uses
+    the same row set as the section table."""
+    bars = sorted(
+        (row for row in grouping.rows if not row.is_other),
+        key=lambda row: (-_row_value(row, measure), row.label),
+    )
+    bars += [row for row in grouping.rows if row.is_other]
+    figure = go.Figure(
+        go.Bar(
+            x=[_row_value(row, measure) for row in bars],
+            y=[row.label for row in bars],
+            orientation="h",
+        )
+    )
     figure.update_layout(
-        title_text=_title(grouping.dimension_label, grouping.measure),
+        title_text=_title(grouping.dimension_label, measure),
         yaxis={"autorange": "reversed"},
         margin={"l": 10, "r": 10, "t": 40, "b": 10},
     )
@@ -53,23 +66,25 @@ def report(
     *,
     top_n: int = DEFAULT_TOP_N,
 ) -> StatisticsReport:
-    """Headline plus one chart per supported dimension + measure; empty groups omit."""
+    """Headline plus one grouping per dimension; one chart per supported
+    measure, all sharing the grouping's rows; empty dimensions omit."""
     charts: list[ChartSpec] = []
     for dimension in dimensions:
+        grouping = group_by(facts, dimension, top_n=top_n)
+        if not grouping.rows:
+            continue
         for measure in dimension.measures():
-            grouping = group_by(facts, dimension, measure=measure, top_n=top_n)
-            if not grouping.rows:
-                continue
+            additive = measure not in grouping.non_additive
             charts.append(
                 ChartSpec(
                     dimension_id=dimension.id,
                     measure=measure,
                     title=_title(dimension.label, measure),
-                    additive=grouping.additive,
-                    note=None if grouping.additive else NON_ADDITIVE_NOTE,
-                    total=grouping.total(),
+                    additive=additive,
+                    note=None if additive else NON_ADDITIVE_NOTE,
+                    total=grouping.total(measure),
                     rows=grouping.rows,
-                    figure=build_figure(grouping),
+                    figure=build_figure(grouping, measure),
                 )
             )
     return StatisticsReport(headline=_headline(facts), charts=tuple(charts))
@@ -79,10 +94,10 @@ def _title(dimension_label: str, measure: Measure) -> str:
     return f"{dimension_label} — {MEASURE_LABELS[measure]}"
 
 
-def _row_values(grouping: Grouping) -> list[int | float]:
-    if grouping.measure is Measure.PUBLICATIONS:
-        return [row.publications for row in grouping.rows]
-    return [float(row.amount or ZERO) for row in grouping.rows]
+def _row_value(row: GroupRow, measure: Measure) -> int | float:
+    if measure is Measure.PUBLICATIONS:
+        return row.publications
+    return float(row.amount or ZERO)
 
 
 def _headline(facts: Sequence[RequestFact]) -> Headline:

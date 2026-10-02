@@ -19,15 +19,28 @@ def _charts_by_key(the_report: StatisticsReport) -> dict[tuple[str, Measure], ob
 
 
 def test__report__builds_a_horizontal_bar_figure_of_the_grouping() -> None:
-    grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"), measure=Measure.PAID_OUT)
+    grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"))
 
-    figure = build_figure(grouping)
+    figure = build_figure(grouping, Measure.PAID_OUT)
 
     assert [trace["type"] for trace in figure["data"]] == ["bar"]
     trace = figure["data"][0]
     assert trace["orientation"] == "h"
     assert list(trace["y"]) == ["Elsevier", "Springer"]
     assert [float(v) for v in trace["x"]] == [150.0, 20.0]
+
+
+def test__report__figures_of_a_dimension_share_rows_and_sort_by_their_measure() -> None:
+    grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"))
+
+    spend = build_figure(grouping, Measure.PAID_OUT)["data"][0]
+    publications = build_figure(grouping, Measure.PUBLICATIONS)["data"][0]
+
+    assert set(spend["y"]) == set(publications["y"]) == {"Elsevier", "Springer"}
+    assert list(spend["y"]) == ["Elsevier", "Springer"]
+    assert [float(v) for v in spend["x"]] == [150.0, 20.0]
+    assert list(publications["y"]) == ["Elsevier", "Springer"]
+    assert [float(v) for v in publications["x"]] == [2.0, 1.0]
 
 
 def test__report__titles_state_measure_and_dimension() -> None:

@@ -1,8 +1,8 @@
 {% comment %}
-    Headline row + one section per dimension (plan §9): figure via json_script
-    rendered by statistics.js, exact-value table beside it, totals only where
-    the grouping is additive (ADR-0007 puts the non-additive note in place of
-    a total).
+    Headline row + one section per dimension (plan §9): the measures' charts
+    side by side over ONE exact-value table — count and spend per row, totals
+    (or the ADR-0007 note) per column. "—" marks a funded value that has paid
+    out nothing; there is no "0.00 €".
 {% endcomment %}
 <div class="statistics-headline">
     <article class="statistics-headline-card">
@@ -38,59 +38,70 @@
 {% for section in sections %}
     <section class="statistics-section" id="statistics-{{ section.dimension_id }}">
         <h3>{{ section.label }}</h3>
-        {% for chart in section.charts %}
-            <div class="statistics-chart-block">
-                <h4>{{ chart.measure_label }}</h4>
-                {{ chart.figure|json_script:chart.data_id }}
-                <div class="statistics-chart"
-                     data-chart="{{ chart.data_id }}"
-                     role="img"
-                     aria-label="{{ chart.title }}"></div>
-                <table class="statistics-values">
-                    <caption class="statistics-caption">Exact values</caption>
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ section.label }}</th>
-                            <th scope="col">{{ chart.measure_label }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in chart.rows %}
-                            <tr>
-                                <th scope="row">
-                                    {% if row.link %}
-                                        <a href="{{ row.link }}"
-                                           title="Show these funding requests in the list">{{ row.label }}</a>
-                                    {% else %}
-                                        {{ row.label }}
-                                    {% endif %}
-                                </th>
-                                <td>
-                                    {% if chart.measure == "publications" %}
-                                        {{ row.publications }}
-                                    {% else %}
-                                        {{ row.amount|floatformat:2 }} €
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="2">
-                                {% if chart.note %}
-                                    <em class="statistics-note">{{ chart.note }}</em>
-                                {% elif chart.measure == "publications" %}
-                                    Total: {{ chart.total }} publications
+        <div class="statistics-charts">
+            {% for chart in section.charts %}
+                <div class="statistics-chart-block">
+                    <h4>{{ chart.measure_label }}</h4>
+                    {{ chart.figure|json_script:chart.data_id }}
+                    <div class="statistics-chart"
+                         data-chart="{{ chart.data_id }}"
+                         role="img"
+                         aria-label="{{ chart.title }}"></div>
+                </div>
+            {% endfor %}
+        </div>
+        <table class="statistics-values">
+            <caption class="statistics-caption">Exact values</caption>
+            <thead>
+                <tr>
+                    <th scope="col">{{ section.label }}</th>
+                    {% for column in section.columns %}
+                        <th scope="col">{{ column.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in section.rows %}
+                    <tr>
+                        <th scope="row">
+                            {% if row.link %}
+                                <a href="{{ row.link }}"
+                                   title="Show these funding requests in the list">{{ row.label }}</a>
+                            {% else %}
+                                {{ row.label }}
+                            {% endif %}
+                        </th>
+                        {% for column in section.columns %}
+                            <td>
+                                {% if column.measure == "publications" %}
+                                    {{ row.publications }}
+                                {% elif row.amount %}
+                                    {{ row.amount|floatformat:2 }} €
                                 {% else %}
-                                    Total: {{ chart.total|floatformat:2 }} €
+                                    —
                                 {% endif %}
                             </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        {% endfor %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row">Total</th>
+                    {% for column in section.columns %}
+                        <td>
+                            {% if column.note %}
+                                <em class="statistics-note">{{ column.note }}</em>
+                            {% elif column.measure == "publications" %}
+                                {{ column.total }} publications
+                            {% else %}
+                                {{ column.total|floatformat:2 }} €
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            </tfoot>
+        </table>
     </section>
 {% empty %}
     <p class="my-2">No funding requests match the selected filters.</p>
