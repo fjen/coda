@@ -38,18 +38,11 @@
 {% for section in sections %}
     <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
         <h3>{{ section.label }}</h3>
-        <div class="statistics-charts">
-            {% for chart in section.charts %}
-                <div class="statistics-chart-block">
-                    <h4>{{ chart.measure_label }}</h4>
-                    {{ chart.figure|json_script:chart.data_id }}
-                    <div class="statistics-chart"
-                         data-chart="{{ chart.data_id }}"
-                         role="img"
-                         aria-label="{{ chart.title }}"></div>
-                </div>
-            {% endfor %}
-        </div>
+        {{ section.chart.figure|json_script:section.chart.data_id }}
+        <div class="statistics-chart"
+             data-chart="{{ section.chart.data_id }}"
+             role="img"
+             aria-label="{{ section.chart.title }}"></div>
         <table class="statistics-values">
             <caption class="statistics-caption">Exact values</caption>
             <thead>

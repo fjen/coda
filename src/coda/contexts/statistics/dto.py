@@ -119,17 +119,24 @@ class Headline:
 
 
 @dataclass(frozen=True, slots=True)
+class ColumnSpec:
+    """One measure column of the dimension's table: its total, or the ADR-0007
+    note where the measure is non-additive and no total may be shown."""
+
+    measure: Measure
+    total: Decimal | int | None
+    note: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ChartSpec:
-    """One dimension + measure: the figure JSON ``Plotly.newPlot`` consumes and the
-    exact values behind it, so the template can render its table without plotly (§9).
-    """
+    """One dimension: the figure JSON ``Plotly.newPlot`` consumes — one panel
+    per measure over the shared entity axis — and the exact values behind it,
+    so the template renders the section table without plotly (§9)."""
 
     dimension_id: str
-    measure: Measure
     title: str
-    additive: bool
-    note: str | None  # the non-additive note shown where a total would go (ADR-0007)
-    total: Decimal | int | None
+    columns: tuple[ColumnSpec, ...]
     rows: tuple[GroupRow, ...]
     figure: dict[str, Any]
 

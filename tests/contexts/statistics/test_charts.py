@@ -4,7 +4,13 @@ from tests.contexts.statistics.factories import institution, make_fact
 
 from coda.contexts.statistics import dimensions
 from coda.contexts.statistics.aggregation import group_by
-from coda.contexts.statistics.charts import NON_ADDITIVE_NOTE, build_figure, report
+from coda.contexts.statistics.charts import (
+    MEASURE_COLORS,
+    MEASURE_LABELS,
+    NON_ADDITIVE_NOTE,
+    build_figure,
+    report,
+)
 from coda.contexts.statistics.dto import Measure, StatisticsReport
 
 PUBLISHER_FACTS = (
@@ -14,46 +20,42 @@ PUBLISHER_FACTS = (
 )
 
 
-def _charts_by_key(the_report: StatisticsReport) -> dict[tuple[str, Measure], object]:
-    return {(c.dimension_id, c.measure): c for c in the_report.charts}
+def _charts_by_id(the_report: StatisticsReport) -> dict[str, object]:
+    return {c.dimension_id: c for c in the_report.charts}
 
 
-def test__report__builds_a_horizontal_bar_figure_of_the_grouping() -> None:
+def test__report__builds_one_figure_with_a_coloured_panel_per_measure() -> None:
     grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"))
 
-    figure = build_figure(grouping, Measure.PAID_OUT)
+    figure = build_figure(grouping)
 
-    assert [trace["type"] for trace in figure["data"]] == ["bar"]
-    trace = figure["data"][0]
-    assert trace["orientation"] == "h"
-    assert list(trace["y"]) == ["Elsevier", "Springer"]
-    assert [float(v) for v in trace["x"]] == [150.0, 20.0]
-
-
-def test__report__figures_of_a_dimension_share_rows_and_sort_by_their_measure() -> None:
-    grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"))
-
-    spend = build_figure(grouping, Measure.PAID_OUT)["data"][0]
-    publications = build_figure(grouping, Measure.PUBLICATIONS)["data"][0]
-
-    assert set(spend["y"]) == set(publications["y"]) == {"Elsevier", "Springer"}
-    assert list(spend["y"]) == ["Elsevier", "Springer"]
-    assert [float(v) for v in spend["x"]] == [150.0, 20.0]
-    assert list(publications["y"]) == ["Elsevier", "Springer"]
+    publications, spend = figure["data"]
+    assert [trace["type"] for trace in figure["data"]] == ["bar", "bar"]
+    assert [trace["orientation"] for trace in figure["data"]] == ["h", "h"]
+    # Shared entity axis in the table's row order — no per-measure re-sorting.
+    assert list(publications["y"]) == list(spend["y"]) == ["Elsevier", "Springer"]
     assert [float(v) for v in publications["x"]] == [2.0, 1.0]
+    assert [float(v) for v in spend["x"]] == [150.0, 20.0]
+    # Separate scales side by side, one hue per measure, axis titles name them.
+    assert publications["xaxis"] == "x" and spend["xaxis"] == "x2"
+    assert publications["marker"]["color"] == MEASURE_COLORS[Measure.PUBLICATIONS]
+    assert spend["marker"]["color"] == MEASURE_COLORS[Measure.PAID_OUT]
+    layout = figure["layout"]
+    assert layout["xaxis"]["title"]["text"] == MEASURE_LABELS[Measure.PUBLICATIONS]
+    assert layout["xaxis2"]["title"]["text"] == MEASURE_LABELS[Measure.PAID_OUT]
+    assert layout["xaxis2"]["domain"] == [0.58, 1.0]
+    assert layout["yaxis"] == {"autorange": "reversed", "automargin": True}
 
 
-def test__report__titles_state_measure_and_dimension() -> None:
+def test__report__titles_name_the_dimension_and_its_measures() -> None:
     the_report = report(PUBLISHER_FACTS, (dimensions.by_id("publisher"),))
 
-    spend = _charts_by_key(the_report)[("publisher", Measure.PAID_OUT)]
-    publications = _charts_by_key(the_report)[("publisher", Measure.PUBLICATIONS)]
+    chart = _charts_by_id(the_report)["publisher"]
 
-    assert spend.title == "Publisher — spend incl. tax"  # type: ignore[attr-defined]
-    assert publications.title == "Publisher — publications"  # type: ignore[attr-defined]
+    assert chart.title == "Publisher — publications & spend incl. tax"  # type: ignore[attr-defined]
 
 
-def test__report__omits_measures_the_dimension_does_not_support() -> None:
+def test__report__single_measure_dimensions_get_a_single_full_width_panel() -> None:
     facts = (
         make_fact(
             publisher="Elsevier",
@@ -63,19 +65,20 @@ def test__report__omits_measures_the_dimension_does_not_support() -> None:
         ),
     )
 
-    the_report = report(facts, dimensions.DIMENSIONS)
+    by_id = _charts_by_id(report(facts, dimensions.DIMENSIONS))
 
-    keys = {(c.dimension_id, c.measure) for c in the_report.charts}
-    assert ("cost_type", Measure.PUBLICATIONS) not in keys
-    assert ("cost_type", Measure.PAID_OUT) in keys
-    assert ("funder", Measure.PUBLICATIONS) in keys
-    assert ("funder", Measure.PAID_OUT) not in keys
+    assert [c.measure for c in by_id["cost_type"].columns] == [Measure.PAID_OUT]  # type: ignore[attr-defined]
+    assert len(by_id["cost_type"].figure["data"]) == 1  # type: ignore[attr-defined]
+    assert "xaxis2" not in by_id["cost_type"].figure["layout"]  # type: ignore[attr-defined]
+    assert [c.measure for c in by_id["funder"].columns] == [Measure.PUBLICATIONS]  # type: ignore[attr-defined]
     assert all(
-        trace["type"] == "bar" for chart in the_report.charts for trace in chart.figure["data"]
+        trace["type"] == "bar"
+        for chart in by_id.values()
+        for trace in chart.figure["data"]  # type: ignore[attr-defined]
     )
 
 
-def test__report__labels_non_additive_charts_and_hides_their_total() -> None:
+def test__report__marks_non_additive_columns_and_hides_their_totals() -> None:
     facts = (
         make_fact(
             institutions=(institution("TU Berlin"), institution("Humboldt")),
@@ -83,17 +86,17 @@ def test__report__labels_non_additive_charts_and_hides_their_total() -> None:
         ),
     )
 
-    the_report = report(facts, (dimensions.by_id("institution"),))
-    for chart in the_report.charts:
-        assert not chart.additive
-        assert chart.note == NON_ADDITIVE_NOTE
-        assert chart.total is None
+    columns = _charts_by_id(report(facts, (dimensions.by_id("institution"),)))[
+        "institution"
+    ].columns  # type: ignore[attr-defined]
+    assert columns
+    assert all(c.note == NON_ADDITIVE_NOTE and c.total is None for c in columns)
 
-    publisher_report = report(PUBLISHER_FACTS, (dimensions.by_id("publisher"),))
-    for chart in publisher_report.charts:
-        assert chart.additive
-        assert chart.note is None
-        assert chart.total is not None
+    publisher_columns = _charts_by_id(report(PUBLISHER_FACTS, (dimensions.by_id("publisher"),)))[
+        "publisher"
+    ].columns  # type: ignore[attr-defined]
+    assert publisher_columns
+    assert all(c.note is None and c.total is not None for c in publisher_columns)
 
 
 def test__report__headline_counts_publications_spend_and_gaps() -> None:

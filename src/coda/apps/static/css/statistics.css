@@ -25,16 +25,6 @@ headline cards above them; this class only keeps the anchor id addressable. */
     margin-bottom: var(--pico-spacing, 1rem);
 }
 
-.statistics-charts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-    gap: 0 1.5rem;
-}
-
-.statistics-chart-block {
-    margin: 1rem 0;
-}
-
 .statistics-chart {
     max-width: 100%;
 }

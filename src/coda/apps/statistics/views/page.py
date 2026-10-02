@@ -82,24 +82,22 @@ class IncompleteInvoice:
 
 @dataclass(frozen=True)
 class ChartPanel:
-    """One dimension + measure: the figure ``statistics.js`` paints. The exact
-    values live once per dimension, in the section's shared table."""
+    """One dimension: the figure ``statistics.js`` paints — one colour-coded
+    panel per measure over the shared entity axis."""
 
     data_id: str
-    measure: Measure
     title: str
-    measure_label: str
     figure: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class DimensionSection:
-    """One section of the page: a dimension, its charts (one per measure, all
-    sharing the row set) and one count-plus-spend table for the whole facet."""
+    """One section of the page: a dimension, its combined figure and one
+    count-plus-spend table for the whole facet."""
 
     dimension_id: str
     label: str
-    charts: tuple[ChartPanel, ...]
+    chart: ChartPanel
     rows: tuple[DimensionRow, ...]
     columns: tuple[MeasureColumn, ...]
 
@@ -178,21 +176,19 @@ def _default_period_url(request: HttpRequest) -> str:
 
 
 def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[DimensionSection]:
-    """Charts and the shared table grouped under their dimension, in registry
-    order; dimensions without a non-empty grouping do not get an empty section."""
-    specs: dict[str, list[ChartSpec]] = {}
-    for spec in report.charts:
-        specs.setdefault(spec.dimension_id, []).append(spec)
+    """Figure and shared table under their dimension, in registry order;
+    dimensions without a non-empty grouping do not get an empty section."""
+    specs = {spec.dimension_id: spec for spec in report.charts}
     sections: list[DimensionSection] = []
     for dimension in DIMENSIONS:
-        dimension_specs = specs.get(dimension.id)
-        if not dimension_specs:
+        spec = specs.get(dimension.id)
+        if spec is None:
             continue
         sections.append(
             DimensionSection(
                 dimension_id=dimension.id,
                 label=dimension.label,
-                charts=tuple(_panel(spec) for spec in dimension_specs),
+                chart=_panel(spec),
                 rows=tuple(
                     DimensionRow(
                         label=row.label,
@@ -201,16 +197,16 @@ def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[Dimension
                         link=links.link(dimension.id, row),
                         is_other=row.is_other,
                     )
-                    for row in dimension_specs[0].rows
+                    for row in spec.rows
                 ),
                 columns=tuple(
                     MeasureColumn(
-                        measure=spec.measure,
-                        label=charts.MEASURE_LABELS[spec.measure],
-                        total=spec.total,
-                        note=spec.note,
+                        measure=column.measure,
+                        label=charts.MEASURE_LABELS[column.measure],
+                        total=column.total,
+                        note=column.note,
                     )
-                    for spec in dimension_specs
+                    for column in spec.columns
                 ),
             )
         )
@@ -219,10 +215,8 @@ def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[Dimension
 
 def _panel(spec: ChartSpec) -> ChartPanel:
     return ChartPanel(
-        data_id=f"chart-{spec.dimension_id}-{spec.measure.value}",
+        data_id=f"chart-{spec.dimension_id}",
         title=spec.title,
-        measure=spec.measure,
-        measure_label=charts.MEASURE_LABELS[spec.measure],
         figure=_figure_with_height(spec),
     )
 

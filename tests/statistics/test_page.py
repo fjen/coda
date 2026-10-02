@@ -23,7 +23,6 @@ from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.statistics.drilldown import facet_param_names
 from coda.apps.statistics.views.page import (
-    ChartPanel,
     DimensionRow,
     DimensionSection,
     MeasureColumn,
@@ -133,16 +132,6 @@ def sections_by_id(response: "_MonkeyPatchedWSGIResponse") -> dict[str, Dimensio
     return {section.dimension_id: section for section in response.context["sections"]}
 
 
-def amount_chart(section: DimensionSection) -> ChartPanel:
-    return next(
-        chart for chart in section.charts if chart.measure in (Measure.PAID_OUT, Measure.FUNDED_BY)
-    )
-
-
-def publications_chart(section: DimensionSection) -> ChartPanel:
-    return next(chart for chart in section.charts if chart.measure is Measure.PUBLICATIONS)
-
-
 def row_by_label(section: DimensionSection, label: str) -> DimensionRow:
     return next(row for row in section.rows if row.label == label)
 
@@ -243,12 +232,8 @@ def test__statistics_page__every_chart_renders_a_plotly_mount_and_json_script(
     mounted = {str(dict(element.attributes).get("data-chart")) for element in charts}
     script_ids = {str(dict(element.attributes).get("id", "")) for element in scripts}
 
-    # Every registered dimension+measure pairs one mount with one figure payload.
-    expected = {
-        f"chart-{dimension.id}-{measure.value}"
-        for dimension in DIMENSIONS
-        for measure in dimension.measures()
-    }
+    # Every registered dimension pairs its one combined figure with one mount.
+    expected = {f"chart-{dimension.id}" for dimension in DIMENSIONS}
     assert mounted == expected
     assert mounted <= script_ids
 
@@ -549,14 +534,14 @@ def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_l
         assert titles == {"Funded paper"}, dimension_id
 
 
-@pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
+@pytest.mark.django_db
 def test__statistics_page__every_dimension__section_measures_and_facet_round_out_the_registry(
     client: Client,
 ) -> None:
-    """§7 completeness: every registry dimension gets its section with one chart
-    per supported measure carrying the shared measure label, table columns with
-    the total for additive measures and the ADR-0007 note otherwise — and every
+    """§7 completeness: every registry dimension gets its section with one
+    combined figure and table columns for every supported measure — the total
+    for additive measures and the ADR-0007 note otherwise — and every
     dimension has a facet whose params the shared form actually accepts (§2 #7)."""
     seed()
     form_fields = set(FundingRequestListFilterForm().fields)
@@ -567,8 +552,7 @@ def test__statistics_page__every_dimension__section_measures_and_facet_round_out
         section = sections[dimension.id]
         assert section.label == dimension.label, dimension.id
 
-        panels = {chart.measure: chart for chart in section.charts}
-        assert set(panels) == set(dimension.measures()), dimension.id
+        assert section.chart.data_id == f"chart-{dimension.id}", dimension.id
         # The double-counting prohibitions (plan §7: no publication count by
         # cost type) live here: value columns are driven strictly by the
         # registry's measures, never by the grouping's internal per-value
@@ -576,9 +560,12 @@ def test__statistics_page__every_dimension__section_measures_and_facet_round_out
         assert {col.measure for col in section.columns} == set(dimension.measures()), (
             dimension.id,
         )
-        for measure, panel in panels.items():
-            assert panel.measure_label == charts.MEASURE_LABELS[measure], dimension.id
+        for measure in dimension.measures():
             value_column = column(section, measure)
+            assert value_column.label == charts.MEASURE_LABELS[measure], (
+                dimension.id,
+                measure,
+            )
             if dimension.is_additive(measure):
                 assert value_column.total is not None, (dimension.id, measure)
                 assert value_column.note is None, (dimension.id, measure)
@@ -602,7 +589,7 @@ def test__statistics_region__swaps_sidebar_toolbar_count_and_sections(
 
     html = response.content.decode()
     assert 'hx-swap-oob="innerHTML:#filter-sidebar-form"' in html
-    assert 'data-chart="chart-subject_area-publications"' in html
+    assert 'data-chart="chart-subject_area"' in html
     assert response["HX-Push-Url"].startswith(reverse("statistics:page"))
 
 

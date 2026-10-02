@@ -51,7 +51,7 @@ def test__statistics_page__plotly__renders_one_svg_per_chart_mount(
     _goto_statistics(coda_page, live_server)
     _wait_for_charts(coda_page)
 
-    expected = sum(len(dimension.measures()) for dimension in DIMENSIONS)
+    expected = len(DIMENSIONS)
     expect(coda_page.locator("[data-chart]")).to_have_count(expected)
 
     painted = coda_page.eval_on_selector_all(
