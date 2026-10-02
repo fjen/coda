@@ -50,6 +50,19 @@ _FACETS: Mapping[str, tuple[str, bool]] = {
 _IDENTITY_DIMENSIONS = frozenset({"publication_form", "cost_type"})
 
 
+def facet_param_names(dimension_id: str) -> tuple[str, ...]:
+    """The shared-form GET params reproducing a dimension's chart set (§2 #7).
+
+    The ``contract`` facet only reproduces a row with both params; a dimension
+    without a facet yields ``()`` — the completeness test in tests/statistics
+    pins that no dimension ever reaches that case.
+    """
+    if dimension_id == "contract":
+        return ("contract_name", "contract_year")
+    facet = _FACETS.get(dimension_id)
+    return () if facet is None else (facet[0],)
+
+
 @dataclass(frozen=True)
 class DrilldownLinks:
     """Resolves chart rows to list URLs; the per-dimension lookup tables are

@@ -12,10 +12,13 @@ from django.test.html import parse_html
 from django.urls import reverse
 from django.utils import timezone
 
+from coda.apps.fundingrequests.forms import FundingRequestListFilterForm
 from coda.apps.fundingrequests.models import FundingRequest
 from coda.apps.invoices.models import Invoice
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
+from coda.apps.statistics.drilldown import facet_param_names
+from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import Measure
 from coda.domain.money import Currency
@@ -418,24 +421,91 @@ def test__statistics_page__active_filters__narrow_every_chart_and_survive_in_dri
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
-def test__statistics_page__drill_down_link__reproduces_the_chart_set_in_the_list(
+def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_list(
     client: Client,
 ) -> None:
-    """Round-trip (§2 #7): the drill-down URL, loaded as the list view, filters by that row."""
+    """Round-trip (§2 #7, plan §11): loading a row's link as the list view
+    yields exactly the requests the chart row counted, per facet."""
     fixture = seed()
+    sections = sections_by_id(goto(client))
 
-    response = goto(client)
-    link = row_by_label(
-        publications_chart(sections_by_id(response)["publisher"]), fixture.publisher.name
-    ).link
-
-    list_response = client.get(link)
-
-    assert list_response.status_code == HTTPStatus.OK
-    assert {str(item.publication_title) for item in list_response.context["entities"]} == {
-        "Funded paper"
+    cases: dict[str, tuple[object, str, str, str]] = {
+        "institution": (
+            amount_chart(sections["institution"]),
+            fixture.institution.name,
+            "institution",
+            str(fixture.institution.pk),
+        ),
+        "license": (
+            publications_chart(sections["license"]),
+            License.CC_BY.name,
+            "license",
+            License.CC_BY.value,
+        ),
+        "journal": (
+            publications_chart(sections["journal"]),
+            fixture.journal.title,
+            "journal",
+            str(fixture.journal.pk),
+        ),
+        "publisher": (
+            amount_chart(sections["publisher"]),
+            fixture.publisher.name,
+            "publisher",
+            str(fixture.publisher.pk),
+        ),
+        "funding_source": (
+            amount_chart(sections["funding_source"]),
+            "Central Fund",
+            "funding_source",
+            str(fixture.source.id),
+        ),
     }
-    assert query_params(link)["publisher"] == [str(fixture.publisher.pk)]
+
+    for dimension_id, (chart, label, param, value) in cases.items():
+        link = row_by_label(chart, label).link
+        assert link is not None, dimension_id
+        assert query_params(link)[param] == [value], dimension_id
+
+        list_response = client.get(link)
+
+        assert list_response.status_code == HTTPStatus.OK, dimension_id
+        titles = {str(item.publication_title) for item in list_response.context["entities"]}
+        assert titles == {"Funded paper"}, dimension_id
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__statistics_page__every_dimension__section_measures_and_facet_round_out_the_registry(
+    client: Client,
+) -> None:
+    """§7 completeness: every registry dimension gets its section, one chart per
+    supported measure with the shared measure label, additive charts a total and
+    non-additive ones the ADR-0007 note — and every dimension has a facet whose
+    params the shared form actually accepts (§2 #7 lockstep)."""
+    seed()
+    form_fields = set(FundingRequestListFilterForm().fields)
+    sections = sections_by_id(goto(client))
+
+    for dimension in DIMENSIONS:
+        assert dimension.id in sections, dimension.id
+        section = sections[dimension.id]
+        assert section.label == dimension.label, dimension.id
+
+        panels = {chart.measure: chart for chart in section.charts}
+        assert set(panels) == set(dimension.measures()), dimension.id
+        for measure, panel in panels.items():
+            assert panel.measure_label == charts.MEASURE_LABELS[measure], dimension.id
+            if dimension.is_additive(measure):
+                assert panel.total is not None, (dimension.id, measure)
+                assert panel.note is None, (dimension.id, measure)
+            else:
+                assert panel.total is None, (dimension.id, measure)
+                assert panel.note == charts.NON_ADDITIVE_NOTE, (dimension.id, measure)
+
+        facet_params = facet_param_names(dimension.id)
+        assert facet_params, dimension.id
+        assert set(facet_params) <= form_fields, dimension.id
 
 
 @pytest.mark.django_db
