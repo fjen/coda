@@ -1,6 +1,8 @@
-{% url 'fundingrequests:list' as filter_clear_url %}
+{% if not filter_clear_url %}
+    {% url 'fundingrequests:list' as filter_clear_url %}
+{% endif %}
 {% include "partials/filter_header.html" with filter_clear_url=filter_clear_url %}
-{% include "partials/filter_active_filters.html" with filter_list_id="fundingrequest-list" %}
+{% include "partials/filter_active_filters.html" with filter_list_id=filter_list_id|default:"fundingrequest-list" %}
 <div class="filter-group">
     <h3 class="filter-group-title">Status</h3>
     <div class="form-row">
