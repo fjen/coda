@@ -8,11 +8,10 @@ from typing import Protocol
 from django.db.models import F, Q, QuerySet
 from django.db.models.functions import ExtractYear
 
-from coda.apps.search import words_icontains
-
 from coda.apps.fundingrequests.mappers import FundingRequestListMapper
 from coda.apps.fundingrequests.models import FundingRequest
 from coda.apps.institutions.models import Institution
+from coda.apps.search import words_icontains
 from coda.domain.author import InstitutionId, Role
 from coda.domain.date import DateRange
 from coda.domain.finance.costtypes import PublicationCostType
@@ -458,6 +457,15 @@ class FundingRequestSearchParams:
     contract_year: int | None = None
     show_invalid_contract_years: bool = False
     funding_source: FundingSourceId | None = None
+    institutions: list[InstitutionId] | None = None
+    publishers: list[int] | None = None
+    journals: list[int] | None = None
+    funders: list[int] | None = None
+    subject_areas: list[uuid.UUID] | None = None
+    licenses: list[License] | None = None
+    publication_form: PublicationForm | None = None
+    cost_types: list[PublicationCostType] | None = None
+    funding_sources: list[FundingSourceId] | None = None
     decimal_separator: str = "."
 
     def without_date_range(self) -> "FundingRequestSearchParams":
@@ -483,6 +491,15 @@ def build_criteria(params: FundingRequestSearchParams) -> list[FundingRequestSea
         _contract_criterion(params),
         _invalid_contract_year_criterion(params),
         _funding_source_criterion(params),
+        _institution_criterion(params),
+        _publisher_criterion(params),
+        _journal_criterion(params),
+        _funder_criterion(params),
+        _subject_area_criterion(params),
+        _license_criterion(params),
+        _publication_form_criterion(params),
+        _cost_type_criterion(params),
+        _funding_sources_criterion(params),
     )
     return [criterion for criterion in criteria if criterion is not None]
 
@@ -493,6 +510,68 @@ def _funding_source_criterion(
     return (
         InvoiceFundingSourceCriteria(funding_source=params.funding_source)
         if params.funding_source is not None
+        else None
+    )
+
+
+def _institution_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return InstitutionCriteria(institutions=params.institutions) if params.institutions else None
+
+
+def _publisher_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return PublisherCriteria(publishers=params.publishers) if params.publishers else None
+
+
+def _journal_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return JournalCriteria(journals=params.journals) if params.journals else None
+
+
+def _funder_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return FunderCriteria(funders=params.funders) if params.funders else None
+
+
+def _subject_area_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return SubjectAreaCriteria(subject_areas=params.subject_areas) if params.subject_areas else None
+
+
+def _license_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return LicenseCriteria(licenses=params.licenses) if params.licenses else None
+
+
+def _publication_form_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return (
+        PublicationFormCriteria(publication_form=params.publication_form)
+        if params.publication_form
+        else None
+    )
+
+
+def _cost_type_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return CostTypeCriteria(cost_types=params.cost_types) if params.cost_types else None
+
+
+def _funding_sources_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    return (
+        FundingSourcesCriteria(funding_sources=params.funding_sources)
+        if params.funding_sources
         else None
     )
 

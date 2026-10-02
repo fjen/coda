@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from collections.abc import Iterable, Mapping
 from typing import Any, ClassVar, cast
 
@@ -23,13 +24,18 @@ from coda.apps.fundingrequests.models import (
 )
 from coda.apps.fundingrequests.views.wizard.formrestore import restore_formset
 from coda.apps.htmx_components.forms import HtmxDynamicFormset
+from coda.apps.institutions import repository as institution_repository
+from coda.apps.invoices.models import FundingSource
+from coda.apps.journals.models import Journal
 from coda.apps.listfilters import (
     DateRangeField,
     ListSortOrder,
     named_model_choices,
     valid_fields,
 )
+from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.dto import ContractYearDto
+from coda.apps.publishers.models import Publisher
 from coda.apps.widgets import (
     PublicationTypeRadioSelect,
     SearchSelectMultiWidget,
@@ -41,11 +47,14 @@ from coda.contexts.fundingrequest.dto.commands import (
     PaymentDto,
     UpdateReviewDto,
 )
+from coda.domain.author import InstitutionId
 from coda.domain.contract import ContractId, ContractYear
+from coda.domain.finance.costtypes import PublicationCostType
+from coda.domain.finance.invoice import FundingSourceId
 from coda.domain.fundingrequest.fundingrequest import PaymentMethod
 from coda.domain.fundingrequest.links import FundingOrganizationLink, create_link, link_types
 from coda.domain.fundingrequest.review import ReviewResult
-from coda.domain.publication import OpenAccessType
+from coda.domain.publication import License, OpenAccessType
 from coda.domain.publication.publication import UnpublishedState
 
 
@@ -383,6 +392,9 @@ open_access_type_choices = [
 publication_type_choices = [
     (entity.value, entity.value.title()) for entity in fq.PublicationEntityType
 ]
+license_choices = [(l.value, l.value) for l in License]
+publication_form_choices = [(form.value, form.value.title()) for form in fq.PublicationForm]
+cost_type_choices = [(ct.value, ct.value) for ct in PublicationCostType]
 
 
 def parse_label_ids(values: Iterable[str]) -> set[int]:
@@ -535,6 +547,102 @@ class FundingRequestListFilterForm(forms.Form):
             }
         ),
     )
+    institution = forms.TypedMultipleChoiceField(
+        coerce=lambda value: InstitutionId(int(value)),
+        choices=lambda: [(inst.pk, inst.name) for inst in institution_repository.non_virtuals()],
+        required=False,
+        label="Institution",
+        widget=SearchSelectMultiWidget(
+            attrs={
+                "id": "id_institution",
+                "class": "w-100",
+                "placeholder": "Select institutions",
+            }
+        ),
+    )
+    publisher = forms.TypedMultipleChoiceField(
+        coerce=int,
+        choices=lambda: [(pub.pk, pub.name) for pub in Publisher.objects.order_by("name")],
+        required=False,
+        label="Publisher",
+        widget=SearchSelectMultiWidget(
+            attrs={
+                "id": "id_publisher",
+                "class": "w-100",
+                "placeholder": "Select publishers",
+            }
+        ),
+    )
+    journal = forms.TypedMultipleChoiceField(
+        coerce=int,
+        choices=lambda: [(j.pk, j.title) for j in Journal.objects.order_by("title")],
+        required=False,
+        label="Journal",
+        widget=SearchSelectMultiWidget(
+            attrs={"id": "id_journal", "class": "w-100", "placeholder": "Select journals"}
+        ),
+    )
+    funder = forms.TypedMultipleChoiceField(
+        coerce=int,
+        choices=lambda: [(f.pk, f.name) for f in FundingOrganization.objects.order_by("name")],
+        required=False,
+        label="Funder",
+        widget=SearchSelectMultiWidget(
+            attrs={"id": "id_funder", "class": "w-100", "placeholder": "Select funders"}
+        ),
+    )
+    subject_area = forms.TypedMultipleChoiceField(
+        coerce=uuid.UUID,
+        choices=lambda: [
+            (str(concept.id), concept.name)
+            for concept in GlobalPreferences.get_subject_classification_vocabulary().concepts
+        ],
+        required=False,
+        label="Subject area",
+        widget=SearchSelectMultiWidget(
+            attrs={
+                "id": "id_subject_area",
+                "class": "w-100",
+                "placeholder": "Select subject areas",
+            }
+        ),
+    )
+    license = forms.TypedMultipleChoiceField(
+        coerce=License,
+        choices=license_choices,
+        required=False,
+        label="License",
+        widget=forms.SelectMultiple(attrs={"id": "id_license", "class": "w-100"}),
+    )
+    publication_form = forms.TypedChoiceField(
+        coerce=fq.PublicationForm,
+        choices=publication_form_choices,
+        required=False,
+        label="Publication form",
+        widget=forms.Select(attrs={"id": "id_publication_form", "class": "w-100"}),
+    )
+    cost_type = forms.TypedMultipleChoiceField(
+        coerce=PublicationCostType,
+        choices=cost_type_choices,
+        required=False,
+        label="Cost type",
+        widget=forms.SelectMultiple(attrs={"id": "id_cost_type", "class": "w-100"}),
+    )
+    funding_source = forms.TypedMultipleChoiceField(
+        coerce=lambda value: FundingSourceId(int(value)),
+        choices=lambda: [
+            (source.pk, source.name) for source in FundingSource.objects.order_by("name")
+        ],
+        required=False,
+        label="Funding source",
+        widget=SearchSelectMultiWidget(
+            attrs={
+                "id": "id_funding_source",
+                "class": "w-100",
+                "placeholder": "Select funding sources",
+            }
+        ),
+    )
     sort_by = forms.ChoiceField(
         choices=ListSortOrder.choices(),
         required=False,
@@ -559,6 +667,15 @@ class FundingRequestListFilterForm(forms.Form):
             search_term=cleaned.get("search_term", ""),
             contract_id=cleaned.get("contract_name"),
             contract_year=cleaned.get("contract_year"),
+            institutions=cleaned.get("institution", []),
+            publishers=cleaned.get("publisher", []),
+            journals=cleaned.get("journal", []),
+            funders=cleaned.get("funder", []),
+            subject_areas=cleaned.get("subject_area", []),
+            licenses=cleaned.get("license", []),
+            publication_form=cleaned.get("publication_form"),
+            cost_types=cleaned.get("cost_type", []),
+            funding_sources=cleaned.get("funding_source", []),
             show_invalid_contract_years=bool(cleaned.get("invalid_contract_years")),
         )
         return fq.build_criteria(params), ListSortOrder.parse_or_default(cleaned.get("sort_by"))
