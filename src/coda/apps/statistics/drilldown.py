@@ -7,10 +7,8 @@ or set (single-valued facets).
 
 Rows grouped by *name* resolve to facet values by name — every model row sharing
 the name contributes its id, so the link covers precisely the chart's merged set.
-The synthetic rows ("Other", "Unknown", "Unassigned") and dimensions without a
-facet in the shared form have no drill-down: the list view could not reproduce
-their set. The publication-type concept registry (§7) is such a dimension — §8's
-settled facet list carries no facet for it.
+The synthetic rows ("Other", "Unknown", "Unassigned") have no drill-down:
+the list view could not reproduce their set.
 """
 
 from collections import defaultdict
@@ -26,6 +24,7 @@ from coda.apps.invoices.models import FundingSource
 from coda.apps.journals.models import Journal
 from coda.apps.listfilters import build_url
 from coda.apps.preferences.models import GlobalPreferences
+from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.publishers.models import Publisher
 from coda.contexts.statistics.dto import GroupRow
 from coda.domain.publication import License, OpenAccessType
@@ -36,6 +35,7 @@ _LIST_URL = "fundingrequests:list"
 _FACETS: Mapping[str, tuple[str, bool]] = {
     "institution": ("institution", True),
     "subject_area": ("subject_area", True),
+    "publication_type": ("publication_type_concept", True),
     "publication_form": ("publication_form", False),
     "license": ("license", True),
     "open_access_type": ("open_access_type", True),
@@ -48,8 +48,6 @@ _FACETS: Mapping[str, tuple[str, bool]] = {
 
 # Dimensions whose chart label is already the facet's accepted value.
 _IDENTITY_DIMENSIONS = frozenset({"publication_form", "cost_type"})
-
-_NO_DRILLDOWN = frozenset({"publication_type"})
 
 
 @dataclass(frozen=True)
@@ -66,8 +64,6 @@ class DrilldownLinks:
 
     def link(self, dimension_id: str, row: GroupRow) -> str | None:
         if row.is_other or row.is_unknown or row.is_unassigned:
-            return None
-        if dimension_id in _NO_DRILLDOWN:
             return None
         if dimension_id == "contract":
             return self._contract_link(row.label)
@@ -121,14 +117,17 @@ def _lookup_tables() -> dict[str, dict[str, list[str]]]:
             concept.name: [str(concept.id)]
             for concept in GlobalPreferences.get_subject_classification_vocabulary().concepts
         },
+        "publication_type": _group_pks(
+            PublicationAttachedConcept.objects.values_list("entity_id", "name")
+        ),
         "license": {license.name: [license.value] for license in License},
         "open_access_type": {access.name: [access.value] for access in OpenAccessType},
     }
 
 
-def _group_pks(rows: Iterable[tuple[int, str]]) -> dict[str, list[str]]:
-    """Map each display name to every row id carrying it — a chart merges
-    same-named rows, so the drill-down must select them all."""
+def _group_pks(rows: Iterable[tuple[object, str]]) -> dict[str, list[str]]:
+    """Map each display name to every row id carrying it (pk or concept entity
+    id) — a chart merges same-named rows, so the drill-down must select them all."""
     grouped: dict[str, list[str]] = defaultdict(list)
     for pk, name in rows:
         grouped[name].append(str(pk))

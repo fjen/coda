@@ -367,6 +367,20 @@ class SubjectAreaCriteria:
 
 
 @dataclass
+class PublicationTypeConceptCriteria:
+    """Requests whose publication carries one of the selected publication-type
+    concepts, identified by the concept's entity id."""
+
+    publication_type_concepts: list[uuid.UUID] = field(default_factory=list)
+
+    def _to_query(self) -> Q:
+        if not self.publication_type_concepts:
+            return Q()
+
+        return Q(publication__publication_type__entity_id__in=self.publication_type_concepts)
+
+
+@dataclass
 class LicenseCriteria:
     """Requests whose publication is published under one of the selected licenses."""
 
@@ -462,6 +476,7 @@ class FundingRequestSearchParams:
     journals: list[int] | None = None
     funders: list[int] | None = None
     subject_areas: list[uuid.UUID] | None = None
+    publication_type_concepts: list[uuid.UUID] | None = None
     licenses: list[License] | None = None
     publication_form: PublicationForm | None = None
     cost_types: list[PublicationCostType] | None = None
@@ -496,6 +511,7 @@ def build_criteria(params: FundingRequestSearchParams) -> list[FundingRequestSea
         _journal_criterion(params),
         _funder_criterion(params),
         _subject_area_criterion(params),
+        _publication_type_concept_criterion(params),
         _license_criterion(params),
         _publication_form_criterion(params),
         _cost_type_criterion(params),
@@ -542,6 +558,16 @@ def _subject_area_criterion(
     params: FundingRequestSearchParams,
 ) -> FundingRequestSearchCriteria | None:
     return SubjectAreaCriteria(subject_areas=params.subject_areas) if params.subject_areas else None
+
+
+def _publication_type_concept_criterion(
+    params: FundingRequestSearchParams,
+) -> FundingRequestSearchCriteria | None:
+    if not params.publication_type_concepts:
+        return None
+    return PublicationTypeConceptCriteria(
+        publication_type_concepts=params.publication_type_concepts
+    )
 
 
 def _license_criterion(

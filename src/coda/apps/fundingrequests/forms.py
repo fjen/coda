@@ -35,6 +35,7 @@ from coda.apps.listfilters import (
 )
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.dto import ContractYearDto
+from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.publishers.models import Publisher
 from coda.apps.widgets import (
     PublicationTypeRadioSelect,
@@ -607,6 +608,24 @@ class FundingRequestListFilterForm(forms.Form):
             }
         ),
     )
+    publication_type_concept = forms.TypedMultipleChoiceField(
+        coerce=uuid.UUID,
+        choices=lambda: list(
+            {
+                str(concept.entity_id): concept.name
+                for concept in PublicationAttachedConcept.objects.order_by("name")
+            }.items()
+        ),
+        required=False,
+        label="Publication type",
+        widget=SearchSelectMultiWidget(
+            attrs={
+                "id": "id_publication_type_concept",
+                "class": "w-100",
+                "placeholder": "Select publication types",
+            }
+        ),
+    )
     license = forms.TypedMultipleChoiceField(
         coerce=License,
         choices=license_choices,
@@ -672,6 +691,7 @@ class FundingRequestListFilterForm(forms.Form):
             journals=cleaned.get("journal", []),
             funders=cleaned.get("funder", []),
             subject_areas=cleaned.get("subject_area", []),
+            publication_type_concepts=cleaned.get("publication_type_concept", []),
             licenses=cleaned.get("license", []),
             publication_form=cleaned.get("publication_form"),
             cost_types=cleaned.get("cost_type", []),

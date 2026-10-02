@@ -22,12 +22,14 @@ from coda.apps.fundingrequests.fundingrequest_query import (
     JournalCriteria,
     LicenseCriteria,
     OpenAccessTypeCriteria,
+    PublicationTypeConceptCriteria,
     PublisherCriteria,
     SubjectAreaCriteria,
 )
 from coda.apps.fundingrequests.models import ExternalFunding
 from coda.apps.institutions.models import Institution
 from coda.apps.preferences.models import GlobalPreferences
+from coda.apps.publications.models import PublicationAttachedConcept
 from coda.contexts.finance.services import invoice_service
 from coda.domain.author import InstitutionId, Role
 from coda.domain.finance.costtypes import PublicationCostType
@@ -169,6 +171,29 @@ def test__searching_by_subject_area__returns_only_requests_with_the_selected_con
 
 
 @pytest.mark.django_db
+def test__searching_by_publication_type_concept__returns_only_requests_with_the_selected_concept_entity_ids() -> (
+    None
+):
+    selected_type = uuid.uuid4()
+
+    matching = modelfactory.fundingrequest("Research article paper")
+    matching.publication.publication_type.entity_id = selected_type
+    matching.publication.publication_type.save()
+
+    _ = modelfactory.fundingrequest("Other type paper")
+    _.publication.publication_type.entity_id = uuid.uuid4()
+    _.publication.publication_type.save()
+
+    results = fundingrequest_query.search(
+        fundingrequest_query.PublicationTypeConceptCriteria(
+            publication_type_concepts=[selected_type]
+        )
+    )
+
+    assert list(results) == [matching]
+
+
+@pytest.mark.django_db
 def test__searching_by_license__returns_only_requests_with_the_selected_licenses() -> None:
     matching = modelfactory.fundingrequest("CC-BY paper")
     matching.publication.license = License.CC_BY.name
@@ -294,12 +319,14 @@ def test__search_params_with_facet_selections__build_criteria__produces_one_crit
     None
 ):
     subject = uuid.uuid4()
+    publication_type = uuid.uuid4()
     params = fq.FundingRequestSearchParams(
         institutions=[InstitutionId(1)],
         publishers=[2],
         journals=[3],
         funders=[4],
         subject_areas=[subject],
+        publication_type_concepts=[publication_type],
         licenses=[License.CC_BY],
         publication_form=fq.PublicationForm.monograph,
         cost_types=[PublicationCostType.Vat],
@@ -313,6 +340,7 @@ def test__search_params_with_facet_selections__build_criteria__produces_one_crit
     assert JournalCriteria(journals=[3]) in criteria
     assert FunderCriteria(funders=[4]) in criteria
     assert SubjectAreaCriteria(subject_areas=[subject]) in criteria
+    assert PublicationTypeConceptCriteria(publication_type_concepts=[publication_type]) in criteria
     assert LicenseCriteria(licenses=[License.CC_BY]) in criteria
     assert fq.PublicationFormCriteria(publication_form=fq.PublicationForm.monograph) in criteria
     assert CostTypeCriteria(cost_types=[PublicationCostType.Vat]) in criteria
@@ -332,6 +360,7 @@ def test__empty_search_params__build_criteria__produces_no_facet_criteria() -> N
         fq.PublicationFormCriteria,
         CostTypeCriteria,
         FundingSourcesCriteria,
+        PublicationTypeConceptCriteria,
     )
     assert not [c for c in criteria if isinstance(c, facet_types)]
 
@@ -346,6 +375,9 @@ def test__facet_get_params__search_criteria__produces_the_matching_criteria() ->
     subject_vocabulary = modelfactory.vocabulary()
     concept = modelfactory.concept(subject_vocabulary)
     GlobalPreferences.set_subject_classification_vocabulary(subject_vocabulary)
+    publication_type_concept = PublicationAttachedConcept.objects.create(
+        name="Research article", vocabulary=subject_vocabulary, entity_id=uuid.uuid4()
+    )
 
     form = FundingRequestListFilterForm(
         MultiValueDict(
@@ -355,6 +387,7 @@ def test__facet_get_params__search_criteria__produces_the_matching_criteria() ->
                 "journal": [str(journal.pk)],
                 "funder": [str(funder.pk)],
                 "subject_area": [str(concept.entity_id)],
+                "publication_type_concept": [str(publication_type_concept.entity_id)],
                 "license": [License.CC_BY.value],
                 "open_access_type": [OpenAccessType.Gold.value],
                 "publication_form": [fq.PublicationForm.monograph.value],
@@ -373,6 +406,12 @@ def test__facet_get_params__search_criteria__produces_the_matching_criteria() ->
     assert JournalCriteria(journals=[journal.pk]) in criteria
     assert FunderCriteria(funders=[funder.pk]) in criteria
     assert SubjectAreaCriteria(subject_areas=[concept.entity_id]) in criteria
+    assert (
+        PublicationTypeConceptCriteria(
+            publication_type_concepts=[publication_type_concept.entity_id]
+        )
+        in criteria
+    )
     assert LicenseCriteria(licenses=[License.CC_BY]) in criteria
     assert OpenAccessTypeCriteria(open_access_types=[OpenAccessType.Gold]) in criteria
     assert fq.PublicationFormCriteria(publication_form=fq.PublicationForm.monograph) in criteria
@@ -389,6 +428,7 @@ def test__facet_get_params__search_criteria__produces_the_matching_criteria() ->
         ("journal", "zzz"),
         ("funder", "zzz"),
         ("subject_area", "not-a-uuid"),
+        ("publication_type_concept", "not-a-uuid"),
         ("license", "bogus-license"),
         ("publication_form", "bogus-form"),
         ("cost_type", "bogus-cost"),

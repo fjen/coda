@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from decimal import Decimal
 from http import HTTPStatus
 from types import SimpleNamespace
@@ -35,6 +36,7 @@ def seed() -> SimpleNamespace:
     funded = helpers.request("Funded paper")
     helpers.corresponding_author(funded, institution.pk)
     _subject_area_from_configured_vocabulary(funded)
+    _named_publication_type(funded)
     publication = funded.publication
     publication.license = License.CC_BY.name
     publication.open_access_type = OpenAccessType.Gold.name
@@ -81,6 +83,17 @@ def _subject_area_from_configured_vocabulary(funded: FundingRequest) -> None:
     concept = modelfactory.concept(vocabulary=vocabulary)
     funded.publication.subject_area = PublicationAttachedConcept.objects.create(
         name=concept.name, vocabulary=concept.vocabulary, entity_id=concept.entity_id
+    )
+    funded.publication.save()
+
+
+def _named_publication_type(funded: FundingRequest) -> None:
+    """Attach a publication-type concept from the registry — every registry row
+    is a facet choice, so the chart's row is expressible as a list filter."""
+    funded.publication.publication_type = PublicationAttachedConcept.objects.create(
+        name="Research article",
+        vocabulary=funded.publication.subject_area.vocabulary,
+        entity_id=uuid.uuid4(),
     )
     funded.publication.save()
 
@@ -303,6 +316,12 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
             fixture.subject_area.name,
             "subject_area",
             str(fixture.subject_area.entity_id),
+        ),
+        "publication_type": (
+            publications_chart(sections["publication_type"]),
+            fixture.publication_type.name,
+            "publication_type_concept",
+            str(fixture.publication_type.entity_id),
         ),
         "license": (
             publications_chart(sections["license"]),
