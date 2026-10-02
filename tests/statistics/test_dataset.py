@@ -5,9 +5,9 @@ from decimal import Decimal
 import pytest
 
 from coda.apps.contracts.mappers._domain import ContractDomainMapper
+from coda.apps.invoices import funding_source_repository
 from coda.apps.publications.models import AttachedContract
 from coda.contexts.statistics.dto import FundingSourceRef, InstitutionRef
-from coda.apps.invoices import funding_source_repository
 from coda.domain.author import InstitutionId, Role
 from coda.domain.money import Currency
 from coda.domain.publication import Authors
@@ -22,9 +22,7 @@ def test__request_with_two_positions_one_assignment_each__build_facts__sums_spen
     fr = helpers.request("Two positions")
     publisher_budget = helpers.budget("Publisher Budget")
     library_fund = helpers.budget("Library Fund")
-    position_a = helpers.position(
-        fr.publication_id, Decimal("1000.00"), Decimal("0.19")
-    )
+    position_a = helpers.position(fr.publication_id, Decimal("1000.00"), Decimal("0.19"))
     position_a.assign_funding(publisher_budget, Decimal("1000.00"))
     position_b = helpers.position(
         fr.publication_id, Decimal("500.00"), Decimal("0.00"), cost_type="other"
@@ -91,11 +89,7 @@ def test__request_without_corresponding_author__build_facts__marks_fact_incomple
     helpers.request(
         title="No corresponding author",
         authors=Authors(
-            [
-                domainfactory.author(
-                    affiliation=InstitutionId(institution.pk), role=Role.CO_AUTHOR
-                )
-            ]
+            [domainfactory.author(affiliation=InstitutionId(institution.pk), role=Role.CO_AUTHOR)]
         ),
     )
 
@@ -131,9 +125,7 @@ def test__invoice_without_conversion_rate__build_facts__excludes_amount_and_coun
         fr.publication_id, Decimal("100.00"), Decimal("0.19"), currency=Currency.USD
     )
     helpers.invoice([unconvertible])
-    convertible = helpers.position(
-        fr.publication_id, Decimal("100.00"), Decimal("0.00")
-    )
+    convertible = helpers.position(fr.publication_id, Decimal("100.00"), Decimal("0.00"))
     helpers.invoice([convertible])
 
     fact = helpers.facts()[0]
@@ -165,9 +157,7 @@ def test__invoice_also_holding_contract_and_free_positions__build_facts__counts_
     None
 ):
     fr = helpers.request("Mixed invoice")
-    publication_position = helpers.position(
-        fr.publication_id, Decimal("1000.00"), Decimal("0.19")
-    )
+    publication_position = helpers.position(fr.publication_id, Decimal("1000.00"), Decimal("0.19"))
     contract = ContractDomainMapper.map(modelfactory.contract())
     helpers.invoice(
         [
@@ -185,17 +175,13 @@ def test__invoice_also_holding_contract_and_free_positions__build_facts__counts_
 
 
 @pytest.mark.django_db
-def test__partially_assigned_position__build_facts__keeps_remainder_as_unassigned() -> (
-    None
-):
+def test__partially_assigned_position__build_facts__keeps_remainder_as_unassigned() -> None:
     fr = helpers.request("Partial assignment")
     institution = modelfactory.institution()
     budget = helpers.budget("Publisher Budget")
     split = domainfactory.split_source(InstitutionId(institution.pk), institution.name)
     split.id = funding_source_repository.create(split)
-    position = helpers.position(
-        fr.publication_id, Decimal("1000.00"), Decimal("0.19")
-    )
+    position = helpers.position(fr.publication_id, Decimal("1000.00"), Decimal("0.19"))
     position.assign_funding(budget, Decimal("500.00"))
     position.assign_funding(split, Decimal("200.00"))
     helpers.invoice([position])

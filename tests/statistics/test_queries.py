@@ -48,9 +48,7 @@ def test__populated_requests__fetch_and_build_facts__reads_facts_without_extra_q
     helpers.invoice([gold, usd], conversions={Currency.EUR: Decimal("1.2500")})
 
     fr_2 = helpers.request("Populated two")
-    publication_position = helpers.position(
-        fr_2.publication_id, Decimal("500.00"), Decimal("0.00")
-    )
+    publication_position = helpers.position(fr_2.publication_id, Decimal("500.00"), Decimal("0.00"))
     contract = ContractDomainMapper.map(modelfactory.contract())
     helpers.invoice(
         [

@@ -1,5 +1,6 @@
 # tests/statistics/helpers.py
 
+import uuid
 from datetime import date
 from decimal import Decimal
 
@@ -17,14 +18,14 @@ from coda.domain.author import Role
 from coda.domain.date import DateRange
 from coda.domain.finance import invoice_positions
 from coda.domain.finance.costtypes import PublicationCostType
-from coda.domain.finance.invoice import CreditorId
-from coda.domain.finance.invoice_positions import Position, PublicationItem
 from coda.domain.finance.funding_sources import Budget
+from coda.domain.finance.invoice import CreditorId, Invoice
+from coda.domain.finance.invoice_positions import Position, PublicationItem
 from coda.domain.finance.taxrate import TaxRate
 from coda.domain.money import Currency, Money
 from coda.domain.publication import Authors
 from coda.domain.publication.publication import PublicationId
-from tests import domainfactory, modelfactory
+from tests import modelfactory
 
 PERIOD_START = date(2026, 3, 1)
 PERIOD_END = date(2026, 3, 31)
@@ -32,9 +33,7 @@ PERIOD_END = date(2026, 3, 31)
 
 def facts(*, report_currency: Currency = Currency.EUR) -> tuple[RequestFact, ...]:
     """The whole statistics pipeline below the view: fetch_requests -> build_facts."""
-    return dataset.build_facts(
-        queries.fetch_requests(criteria()), report_currency
-    )
+    return dataset.build_facts(queries.fetch_requests(criteria()), report_currency)
 
 
 def criteria() -> list[fundingrequest_query.FundingRequestSearchCriteria]:
@@ -45,9 +44,7 @@ def criteria() -> list[fundingrequest_query.FundingRequestSearchCriteria]:
     )
 
 
-def request(
-    title: str, authors: Authors | None = None
-) -> FundingRequest:
+def request(title: str, authors: Authors | None = None) -> FundingRequest:
     fr = modelfactory.fundingrequest(title=title, authors=authors)
     fr.request_date = date(2026, 3, 15)
     fr.save()
@@ -95,9 +92,7 @@ def position(
     currency: Currency = Currency.EUR,
 ) -> Position:
     return invoice_positions.create(
-        item=PublicationItem(
-            PublicationId(publication_id), PublicationCostType(cost_type)
-        ),
+        item=PublicationItem(PublicationId(publication_id), PublicationCostType(cost_type)),
         cost=Money(amount, currency),
         tax_rate=TaxRate(tax_rate),
         external_position_id="",
@@ -110,13 +105,21 @@ def budget(name: str) -> Budget:
     return source
 
 
+# Statistics fixtures keep invoices unpaid: the domain refuses to save a
+# paid invoice whose costs are not fully assigned, and part of what the
+# dataset must handle is partially assigned positions (§5 remainder).
+
+
 def invoice(
     positions: list[Position],
     conversions: dict[Currency, Decimal] | None = None,
 ) -> None:
     creditor = modelfactory.creditor()
-    saved = domainfactory.invoice(
-        creditor=CreditorId(creditor.pk), positions=positions
+    saved = Invoice.new(
+        number=uuid.uuid4().hex,
+        date=date(2026, 3, 20),
+        creditor=CreditorId(creditor.pk),
+        positions=positions,
     )
     for currency, rate in (conversions or {}).items():
         saved.add_conversion(rate, currency)
