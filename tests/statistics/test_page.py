@@ -2,12 +2,11 @@ import hashlib
 from decimal import Decimal
 from http import HTTPStatus
 from types import SimpleNamespace
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from django.contrib.staticfiles.finders import find
-from django.template.response import TemplateResponse
 from django.test import Client
 from django.test.html import parse_html
 from django.urls import reverse
@@ -19,7 +18,7 @@ from coda.apps.invoices.models import Invoice
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.statistics.drilldown import facet_param_names
-from coda.apps.statistics.views.page import ChartPanel, ChartRow
+from coda.apps.statistics.views.page import ChartPanel, ChartRow, DimensionSection
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import Measure
@@ -28,6 +27,9 @@ from coda.domain.publication import License, OpenAccessType
 from tests import modelfactory
 from tests.filterdom import walk
 from tests.statistics import helpers
+
+if TYPE_CHECKING:
+    from django.test.client import _MonkeyPatchedWSGIResponse
 
 PERIOD = {"start_date": "2026-01-01", "end_date": "2026-12-31"}
 
@@ -64,6 +66,7 @@ def seed() -> SimpleNamespace:
     unconvertible_invoice = helpers.invoice([foreign])
 
     journal = publication.article_journal
+    assert journal is not None
     attached = publication.attached_contracts.get()
     return SimpleNamespace(
         funded=funded,
@@ -107,25 +110,25 @@ def _named_publication_type(funded: FundingRequest) -> None:
     funded.publication.save()
 
 
-def goto(client: Client, **query: str) -> object:
+def goto(client: Client, **query: str) -> "_MonkeyPatchedWSGIResponse":
     return client.get(reverse("statistics:page"), data={**PERIOD, **query})
 
 
-def sections_by_id(response: object) -> dict[str, object]:
+def sections_by_id(response: "_MonkeyPatchedWSGIResponse") -> dict[str, DimensionSection]:
     return {section.dimension_id: section for section in response.context["sections"]}
 
 
-def amount_chart(section: object) -> object:
+def amount_chart(section: DimensionSection) -> ChartPanel:
     return next(
         chart for chart in section.charts if chart.measure in (Measure.PAID_OUT, Measure.FUNDED_BY)
     )
 
 
-def publications_chart(section: object) -> object:
+def publications_chart(section: DimensionSection) -> ChartPanel:
     return next(chart for chart in section.charts if chart.measure is Measure.PUBLICATIONS)
 
 
-def row_by_label(chart: object, label: str) -> object:
+def row_by_label(chart: ChartPanel, label: str) -> ChartRow:
     return next(row for row in chart.rows if row.label == label)
 
 
@@ -136,7 +139,7 @@ def query_params(url: str) -> dict[str, list[str]]:
 def funded_journal_pk() -> int:
     from coda.apps.publications.models import Publication
 
-    return Publication.objects.get(title="Funded paper").article_journal_id
+    return cast(int, Publication.objects.get(title="Funded paper").article_journal_id)
 
 
 @pytest.mark.django_db
@@ -307,7 +310,7 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
     sections = sections_by_id(response)
     list_url = reverse("fundingrequests:list")
 
-    expected: dict[str, tuple[object, str, str, str]] = {
+    expected: dict[str, tuple[ChartPanel, str, str, str]] = {
         "journal": (
             amount_chart(sections["journal"]),
             fixture.journal.title,
@@ -383,6 +386,7 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
     contract_row = row_by_label(
         contract_chart, f"{fixture.contract.name} ({fixture.contract_year})"
     )
+    assert contract_row.link is not None
     contract_params = query_params(contract_row.link)
     assert contract_params["contract_name"] == [str(fixture.contract.pk)]
     assert contract_params["contract_year"] == [str(fixture.contract_year)]
@@ -417,23 +421,21 @@ def test__statistics_page__publication_without_journal_or_publisher__forms_unkno
     formless.publication.article_journal = None
     formless.publication.save()
 
-    chart = cast(ChartPanel, publications_chart(sections_by_id(goto(client))["publication_form"]))
+    chart = publications_chart(sections_by_id(goto(client))["publication_form"])
     assert [(row.label, row.publications) for row in chart.rows] == [
         ("article", 3),
         ("Unknown", 1),
     ]
-    assert cast(ChartRow, row_by_label(chart, "Unknown")).link is None
+    assert row_by_label(chart, "Unknown").link is None
 
-    articles = cast(
-        TemplateResponse,
-        client.get(reverse("fundingrequests:list"), {**PERIOD, "publication_form": "article"}),
+    articles = client.get(
+        reverse("fundingrequests:list"), {**PERIOD, "publication_form": "article"}
     )
     titles = {str(item.publication_title) for item in articles.context["entities"]}
     assert titles == {"Funded paper", "Paper without invoice", "Paper without rate"}
 
-    monographs = cast(
-        TemplateResponse,
-        client.get(reverse("fundingrequests:list"), {**PERIOD, "publication_form": "monograph"}),
+    monographs = client.get(
+        reverse("fundingrequests:list"), {**PERIOD, "publication_form": "monograph"}
     )
     assert list(monographs.context["entities"]) == []
 
@@ -452,7 +454,9 @@ def test__statistics_page__active_filters__narrow_every_chart_and_survive_in_dri
     assert amount_chart(sections["subject_area"]).total == Decimal("1200.00")
     assert publications_chart(sections["journal"]).rows[0].publications == 1
 
-    link_params = query_params(amount_chart(sections["journal"]).rows[0].link)
+    journal_link = amount_chart(sections["journal"]).rows[0].link
+    assert journal_link is not None
+    link_params = query_params(journal_link)
     assert link_params["license"] == [License.CC_BY.value]
     assert link_params["journal"] == [str(funded_journal_pk())]
 
@@ -467,7 +471,7 @@ def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_l
     fixture = seed()
     sections = sections_by_id(goto(client))
 
-    cases: dict[str, tuple[object, str, str, str]] = {
+    cases: dict[str, tuple[ChartPanel, str, str, str]] = {
         "institution": (
             amount_chart(sections["institution"]),
             fixture.institution.name,
@@ -602,10 +606,7 @@ def test__statistics_page__facet_chips__name_values_and_point_back_at_the_page(
     removable chips on the statistics page, pointing back at this page."""
     fixture = seed()
 
-    response = cast(
-        TemplateResponse,
-        goto(client, journal=str(fixture.journal.pk), publication_form="monograph"),
-    )
+    response = goto(client, journal=str(fixture.journal.pk), publication_form="monograph")
 
     chips = response.context["active_filters"]
     assert [chip.text for chip in chips] == [

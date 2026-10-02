@@ -38,6 +38,7 @@ from coda.domain.finance.costtypes import PublicationCostType
 from coda.domain.finance.invoice import CreditorId, FundingSourceId
 from coda.domain.publication import Authors
 from coda.domain.publication.publication import License, OpenAccessType, PublicationId
+from coda.domain.vocabulary import VocabularyProtocol
 from tests import domainfactory, modelfactory
 
 
@@ -376,10 +377,14 @@ def test__facet_get_params__search_criteria__produces_the_matching_criteria() ->
     budget = modelfactory.budget(name="Form Budget")
     subject_vocabulary = modelfactory.vocabulary()
     concept = modelfactory.concept(subject_vocabulary)
-    GlobalPreferences.set_subject_classification_vocabulary(subject_vocabulary)
+    GlobalPreferences.set_subject_classification_vocabulary(
+        cast(VocabularyProtocol, subject_vocabulary)
+    )
     type_vocabulary = modelfactory.vocabulary()
     type_concept = modelfactory.concept(type_vocabulary)
-    GlobalPreferences.set_article_publication_type_vocabulary(type_vocabulary)
+    GlobalPreferences.set_article_publication_type_vocabulary(
+        cast(VocabularyProtocol, type_vocabulary)
+    )
     publication_type_concept = PublicationAttachedConcept.objects.create(
         name=type_concept.name, vocabulary=type_vocabulary, entity_id=type_concept.entity_id
     )
@@ -457,11 +462,17 @@ def test__publication_type_facet__offers_the_wizard_vocabularies_not_the_whole_r
     offer exactly those names, never subject-area concepts or the blank default
     row that share the ``PublicationAttachedConcept`` registry table."""
     subject_vocabulary = modelfactory.vocabulary()
-    GlobalPreferences.set_subject_classification_vocabulary(subject_vocabulary)
+    GlobalPreferences.set_subject_classification_vocabulary(
+        cast(VocabularyProtocol, subject_vocabulary)
+    )
     article_vocabulary = modelfactory.vocabulary()
     monograph_vocabulary = modelfactory.vocabulary()
-    GlobalPreferences.set_article_publication_type_vocabulary(article_vocabulary)
-    GlobalPreferences.set_monograph_publication_type_vocabulary(monograph_vocabulary)
+    GlobalPreferences.set_article_publication_type_vocabulary(
+        cast(VocabularyProtocol, article_vocabulary)
+    )
+    GlobalPreferences.set_monograph_publication_type_vocabulary(
+        cast(VocabularyProtocol, monograph_vocabulary)
+    )
     subject_concept = subject_vocabulary.concepts.get()
     article_concept = article_vocabulary.concepts.get()
     monograph_concept = monograph_vocabulary.concepts.get()
@@ -474,7 +485,7 @@ def test__publication_type_facet__offers_the_wizard_vocabularies_not_the_whole_r
 
     form = FundingRequestListFilterForm()
     field = cast(TypedMultipleChoiceField, form.fields["publication_type_concept"])
-    choices = dict(field.choices)
+    choices = dict(cast(list[tuple[str, str]], field.choices))
 
     assert choices == {
         str(article_concept.entity_id): article_concept.name,
