@@ -81,6 +81,25 @@ def test__group_by_single_dimension__groups_a_missing_value_as_unknown() -> None
     ]
 
 
+@pytest.mark.parametrize("dimension_id", ["subject_area", "publication_type"])
+def test__group_by_concept_dimension__groups_a_blank_concept_name_as_unknown(
+    dimension_id: str,
+) -> None:
+    """The default row of these non-nullable concepts carries an empty name —
+    the chart row must read "Unknown", never blank (plan §5)."""
+    facts = (
+        make_fact(**{dimension_id: ""}, paid_out_total=Decimal("10.00")),
+        make_fact(**{dimension_id: "Biology"}, paid_out_total=Decimal("20.00")),
+    )
+
+    grouping = group_by(facts, dimensions.by_id(dimension_id), measure=Measure.PUBLICATIONS)
+
+    assert [(r.label, r.publications, r.is_unknown) for r in grouping.rows] == [
+        ("Biology", 1, False),
+        ("Unknown", 1, True),
+    ]
+
+
 def test__group_by_empty_input__yields_no_rows_and_a_zero_total() -> None:
     grouping = group_by((), dimensions.by_id("publisher"), measure=Measure.PUBLICATIONS)
 

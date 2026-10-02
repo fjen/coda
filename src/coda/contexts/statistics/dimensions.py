@@ -76,6 +76,13 @@ def _known(value: str | None) -> str:
     return value if value is not None else UNKNOWN
 
 
+def _named(value: str | None) -> str:
+    """A concept whose name is blank — the default row of the non-nullable
+    ``subject_area``/``publication_type`` concepts — groups like a missing
+    concept: as "Unknown", never as a blank chart row (plan §5)."""
+    return value if value else UNKNOWN
+
+
 def _paid_out_under_each(labels: tuple[str, ...], fact: RequestFact) -> tuple[Contribution, ...]:
     """Repeated dimensions count the whole paid-out amount under every value (ADR-0007)."""
     return tuple(Contribution(label, fact.paid_out_total) for label in labels)
@@ -98,10 +105,10 @@ def _single_value_paid_out(
 
 
 SUBJECT_AREA = _single_value_paid_out(
-    "subject_area", "Subject area", lambda fact: fact.subject_area
+    "subject_area", "Subject area", lambda fact: _named(fact.subject_area)
 )
 PUBLICATION_TYPE = _single_value_paid_out(
-    "publication_type", "Publication type", lambda fact: fact.publication_type
+    "publication_type", "Publication type", lambda fact: _named(fact.publication_type)
 )
 PUBLICATION_FORM = _single_value_paid_out(
     "publication_form",
