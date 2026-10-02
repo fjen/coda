@@ -23,7 +23,7 @@ from coda.apps.institutions.models import Institution
 from coda.apps.invoices.models import FundingSource
 from coda.apps.journals.models import Journal
 from coda.apps.listfilters import build_url
-from coda.apps.preferences.models import GlobalPreferences
+from coda.apps.preferences.models import GlobalPreferences, PreloadedVocabularyProvider
 from coda.apps.publishers.models import Publisher
 from coda.contexts.statistics.dto import GroupRow
 from coda.domain.publication import License, OpenAccessType
@@ -71,8 +71,12 @@ class DrilldownLinks:
     _by_name: Mapping[str, dict[str, list[str]]]
 
     @classmethod
-    def build(cls, request: HttpRequest) -> "DrilldownLinks":
-        return cls(request=request, _by_name=_lookup_tables())
+    def build(
+        cls, request: HttpRequest, *, vocabularies: PreloadedVocabularyProvider | None = None
+    ) -> "DrilldownLinks":
+        if vocabularies is None:
+            vocabularies = GlobalPreferences.preloaded()
+        return cls(request=request, _by_name=_lookup_tables(vocabularies))
 
     def link(self, dimension_id: str, row: GroupRow) -> str | None:
         if row.is_other or row.is_unknown or row.is_unassigned:
@@ -118,12 +122,12 @@ class DrilldownLinks:
         return build_url(_LIST_URL, params)
 
 
-def _lookup_tables() -> dict[str, dict[str, list[str]]]:
+def _lookup_tables(vocabularies: PreloadedVocabularyProvider) -> dict[str, dict[str, list[str]]]:
     """Chart label -> facet values. Concept-typed dimensions key off the
-    configured vocabularies, not the raw concept registry: a row whose concept
-    the shared form would reject as an invalid choice must not get a link that
-    silently widens the chart's set (§2 #7)."""
-    vocabularies = GlobalPreferences.preloaded()
+    configured vocabularies — the page's one pre-loaded provider, not the raw
+    concept registry: a row whose concept the shared form would reject as an
+    invalid choice must not get a link that silently widens the chart's set
+    (§2 #7)."""
     # Keyed by concept id: a concept configured for both vocabularies is one
     # facet value, not two.
     publication_type_concepts = {
@@ -143,7 +147,7 @@ def _lookup_tables() -> dict[str, dict[str, list[str]]]:
         "funding_source": _group_pks(FundingSource.objects.values_list("pk", "name")),
         "subject_area": {
             concept.name: [str(concept.id)]
-            for concept in GlobalPreferences.get_subject_classification_vocabulary().concepts
+            for concept in vocabularies.get_subject_classification_vocabulary().concepts
         },
         "publication_type": _group_pks(
             (str(concept_id), name) for concept_id, name in publication_type_concepts.items()

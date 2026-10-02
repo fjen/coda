@@ -132,7 +132,10 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
     shared rail's form/chips state."""
     labels = list(Label.objects.all().order_by("name"))
     contracts = list(Contract.objects.all())
-    filter_form = FundingRequestListFilterForm(request.GET, contracts=contracts, labels=labels)
+    vocabularies = GlobalPreferences.preloaded()
+    filter_form = FundingRequestListFilterForm(
+        request.GET, contracts=contracts, labels=labels, vocabularies=vocabularies
+    )
     criteria, _sort_order = filter_form.search_criteria()
     facts = build_facts(queries.fetch_requests(criteria), GlobalPreferences.get_home_currency())
     report = charts.report(facts, DIMENSIONS)
@@ -160,7 +163,7 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
         "filter_list_id": _REGION_ELEMENT_ID,
         "headline": report.headline,
         "incomplete_invoices": _incomplete_invoices(facts),
-        "sections": _sections(report, DrilldownLinks.build(request)),
+        "sections": _sections(report, DrilldownLinks.build(request, vocabularies=vocabularies)),
     }
 
 

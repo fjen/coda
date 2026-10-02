@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.test import Client
 from pytest_django import DjangoAssertNumQueries
 
 from coda.apps.contracts.mappers._domain import ContractDomainMapper
@@ -11,6 +12,7 @@ from coda.apps.statistics import queries
 from coda.domain.money import Currency
 from tests import domainfactory, modelfactory
 from tests.statistics import helpers
+from tests.statistics.test_page import goto, seed
 
 
 @pytest.mark.django_db
@@ -62,3 +64,18 @@ def test__populated_requests__fetch_and_build_facts__reads_facts_without_extra_q
         facts = helpers.facts()
 
     assert len(facts) == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__statistics_page__render__fits_a_fixed_query_budget(
+    client: Client, django_assert_num_queries: DjangoAssertNumQueries
+) -> None:
+    """The render's cost is fixed per view: the fact graph, the rail's facet
+    choice lists, the drill-down lookup tables and exactly one round-trip for
+    the configured vocabularies — the form and the drill-down share the page's
+    one pre-loaded provider."""
+    seed()
+
+    with django_assert_num_queries(48):
+        assert goto(client).status_code == 200

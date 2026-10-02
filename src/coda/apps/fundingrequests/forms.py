@@ -35,7 +35,7 @@ from coda.apps.listfilters import (
     named_model_choices,
     valid_fields,
 )
-from coda.apps.preferences.models import GlobalPreferences
+from coda.apps.preferences.models import GlobalPreferences, PreloadedVocabularyProvider
 from coda.apps.publications.dto import ContractYearDto
 from coda.apps.publishers.models import Publisher
 from coda.apps.widgets import (
@@ -399,14 +399,17 @@ publication_form_choices = [(form.value, form.value.title()) for form in fq.Publ
 cost_type_choices = [(ct.value, ct.value) for ct in PublicationCostType]
 
 
-def publication_type_vocabulary_choices() -> list[tuple[str, str]]:
+def publication_type_vocabulary_choices(
+    vocabularies: PreloadedVocabularyProvider | None = None,
+) -> list[tuple[str, str]]:
     """The concepts the wizard's publication-type step offers — the configured
     article and monograph vocabularies (``AllowedConcepts`` reads the very same
     ``GlobalPreferences`` rows; the facet cannot know the entity kind, so it
     offers both). Blank names — the default concept row — select nothing. The
     rest of the ``PublicationAttachedConcept`` registry (subject-area concepts
     in particular) is deliberately not offered."""
-    vocabularies = GlobalPreferences.preloaded()
+    if vocabularies is None:
+        vocabularies = GlobalPreferences.preloaded()
     concepts = [
         *vocabularies.get_article_publication_type_vocabulary().concepts,
         *vocabularies.get_monograph_publication_type_vocabulary().concepts,
@@ -485,7 +488,8 @@ class FundingRequestListFilterForm(forms.Form):
         self,
         *args: Any,
         contracts: Iterable[Contract] = (),
-        labels: Iterable[Label],
+        labels: Iterable[Label] = (),
+        vocabularies: PreloadedVocabularyProvider | None = None,
         **kwargs: Any,
     ) -> None:
         kwargs.setdefault("label_suffix", "")
@@ -514,6 +518,21 @@ class FundingRequestListFilterForm(forms.Form):
             selectable = {label.pk for label in label_options}
             self.selected_label_ids = parse_label_ids(data.getlist("labels")) & selectable
             self.excluded_label_ids = parse_label_ids(data.getlist("exclude_labels")) & selectable
+
+        if vocabularies is not None:
+            # These fields' choices are callables; left to their defaults each
+            # access re-fetches the preferences singleton and its vocabulary
+            # batches. A caller that builds the form — the statistics page —
+            # passes one provider shared with the drill-down tables instead.
+            subject_field = cast(forms.TypedMultipleChoiceField, self.fields["subject_area"])
+            subject_field.choices = lambda: [
+                (str(concept.id), concept.name)
+                for concept in vocabularies.get_subject_classification_vocabulary().concepts
+            ]
+            concept_field = cast(
+                forms.TypedMultipleChoiceField, self.fields["publication_type_concept"]
+            )
+            concept_field.choices = lambda: publication_type_vocabulary_choices(vocabularies)
 
         data = (
             self.data
