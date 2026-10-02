@@ -36,7 +36,7 @@
     </div>
 {% endif %}
 {% for section in sections %}
-    <section class="statistics-section" id="statistics-{{ section.dimension_id }}">
+    <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
         <h3>{{ section.label }}</h3>
         <div class="statistics-charts">
             {% for chart in section.charts %}
@@ -102,7 +102,7 @@
                 </tr>
             </tfoot>
         </table>
-    </section>
+    </article>
 {% empty %}
     <p class="my-2">No funding requests match the selected filters.</p>
 {% endfor %}

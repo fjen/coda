@@ -19,8 +19,10 @@
     margin: 0 0 1rem;
 }
 
+/* Pico paints <article> as a card — facets use that idiom, like the
+headline cards above them; this class only keeps the anchor id addressable. */
 .statistics-section {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--pico-spacing, 1rem);
 }
 
 .statistics-charts {
