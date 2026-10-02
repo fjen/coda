@@ -17,6 +17,11 @@ UNKNOWN = "Unknown"
 OTHER = "Other"
 UNASSIGNED = "Unassigned"
 
+#: The fact value ``dataset.publication_form`` gives a publication with neither
+#: an article journal nor a monograph publisher. No facet value matches it
+#: (``PublicationFormCriteria``), so it joins the linkless "Unknown" rows.
+FORM_UNKNOWN = "unknown"
+
 ZERO = Decimal(0)
 
 
@@ -99,7 +104,9 @@ PUBLICATION_TYPE = _single_value_paid_out(
     "publication_type", "Publication type", lambda fact: fact.publication_type
 )
 PUBLICATION_FORM = _single_value_paid_out(
-    "publication_form", "Publication form", lambda fact: fact.publication_form
+    "publication_form",
+    "Publication form",
+    lambda fact: None if fact.publication_form == FORM_UNKNOWN else fact.publication_form,
 )
 LICENSE = _single_value_paid_out("license", "License", lambda fact: fact.license)
 OPEN_ACCESS_TYPE = _single_value_paid_out(

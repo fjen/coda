@@ -10,10 +10,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from coda.apps.fundingrequests.fundingrequest_query import PublicationForm
 from coda.apps.fundingrequests.models import FundingRequest
 from coda.apps.invoices.mappers._domain import FundingSourceDomainMapper
 from coda.apps.invoices.models import Invoice, Position
 from coda.apps.publications.models import Publication
+from coda.contexts.statistics.dimensions import FORM_UNKNOWN
 from coda.contexts.statistics.dto import FundingSourceRef, InstitutionRef, RequestFact
 from coda.contexts.statistics.measures import (
     gross_assignment,
@@ -39,12 +41,17 @@ def build_facts(
 
 
 def publication_form(publication: Publication) -> str:
-    """Article iff ``article_journal``, monograph iff ``monograph_publisher`` —
-    the canonical rule of ``PublicationFormCriteria`` (plan §8, §2 #7). Article
-    is checked first: a publication with both fields shows as article and is
-    selectable by both facet values; one with neither is degenerate data that
-    no facet matches and falls back to article."""
-    return "article" if publication.article_journal_id else "monograph"
+    """Article iff ``article_journal``, monograph iff ``monograph_publisher``,
+    neither -> the ``FORM_UNKNOWN`` sentinel — the single rule shared with
+    ``PublicationFormCriteria`` (plan §8, §2 #7). Both fields set: both facet
+    values match it and the single-valued fact takes article first; neither
+    set: no facet value matches, so the fact claims no form and the chart
+    groups it with the other linkless "Unknown" rows."""
+    if publication.article_journal_id:
+        return PublicationForm.article
+    if publication.monograph_publisher_id:
+        return PublicationForm.monograph
+    return FORM_UNKNOWN
 
 
 def _build_fact(request: FundingRequest, report_currency: Currency) -> RequestFact:

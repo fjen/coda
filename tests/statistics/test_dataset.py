@@ -195,3 +195,41 @@ def test__partially_assigned_position__build_facts__keeps_remainder_as_unassigne
         FundingSourceRef(institution.name): Decimal("238.00"),
     }
     assert fact.unassigned == Decimal("357.00")
+
+
+@pytest.mark.django_db
+def test__article_publication__build_facts__form_is_article() -> None:
+    helpers.request("Journal paper")
+
+    assert helpers.facts()[0].publication_form == "article"
+
+
+@pytest.mark.django_db
+def test__monograph_publication__build_facts__form_is_monograph() -> None:
+    fr = helpers.request("Monograph")
+    fr.publication.article_journal = None
+    fr.publication.monograph_publisher = modelfactory.publisher()
+    fr.publication.save()
+
+    assert helpers.facts()[0].publication_form == "monograph"
+
+
+@pytest.mark.django_db
+def test__publication_without_journal_or_publisher__build_facts__form_is_unknown() -> None:
+    """Neither facet value matches such a publication — ``PublicationFormCriteria``
+    excludes it from both forms, so the fact must not claim one (plan §8)."""
+    fr = helpers.request("Formless paper")
+    fr.publication.article_journal = None
+    fr.publication.save()
+
+    assert helpers.facts()[0].publication_form == "unknown"
+
+
+@pytest.mark.django_db
+def test__publication_with_journal_and_monograph_publisher__build_facts__article_wins() -> None:
+    """Both facet values match it; the fact is single-valued with article first."""
+    fr = helpers.request("Both forms")
+    fr.publication.monograph_publisher = modelfactory.publisher()
+    fr.publication.save()
+
+    assert helpers.facts()[0].publication_form == "article"

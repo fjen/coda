@@ -3,10 +3,12 @@ import uuid
 from decimal import Decimal
 from http import HTTPStatus
 from types import SimpleNamespace
+from typing import cast
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from django.contrib.staticfiles.finders import find
+from django.template.response import TemplateResponse
 from django.test import Client
 from django.test.html import parse_html
 from django.urls import reverse
@@ -18,6 +20,7 @@ from coda.apps.invoices.models import Invoice
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.statistics.drilldown import facet_param_names
+from coda.apps.statistics.views.page import ChartPanel, ChartRow
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import Measure
@@ -398,6 +401,40 @@ def test__statistics_page__unassigned_and_unknown_rows__have_no_drill_down(
     assert unassigned.link is None
     unknown = row_by_label(publications_chart(sections["institution"]), "Unknown")
     assert unknown.link is None
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__statistics_page__publication_without_journal_or_publisher__forms_unknown_row_without_facet(
+    client: Client,
+) -> None:
+    """§2 #7: the "Unknown" form row has no facet value behind it —
+    ``PublicationFormCriteria`` matches neither form — so it carries no
+    drill-down, and the article/monograph facets both exclude the request."""
+    seed()
+    formless = helpers.request("Formless paper")
+    formless.publication.article_journal = None
+    formless.publication.save()
+
+    chart = cast(ChartPanel, publications_chart(sections_by_id(goto(client))["publication_form"]))
+    assert [(row.label, row.publications) for row in chart.rows] == [
+        ("article", 3),
+        ("Unknown", 1),
+    ]
+    assert cast(ChartRow, row_by_label(chart, "Unknown")).link is None
+
+    articles = cast(
+        TemplateResponse,
+        client.get(reverse("fundingrequests:list"), {**PERIOD, "publication_form": "article"}),
+    )
+    titles = {str(item.publication_title) for item in articles.context["entities"]}
+    assert titles == {"Funded paper", "Paper without invoice", "Paper without rate"}
+
+    monographs = cast(
+        TemplateResponse,
+        client.get(reverse("fundingrequests:list"), {**PERIOD, "publication_form": "monograph"}),
+    )
+    assert list(monographs.context["entities"]) == []
 
 
 @pytest.mark.django_db
