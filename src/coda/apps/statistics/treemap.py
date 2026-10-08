@@ -34,8 +34,12 @@ def institution_treemap(
 ) -> dict[str, Any] | None:
     """Figure JSON for the institution hierarchy, or None when the filtered
     set has no affiliated requests. Publications is the tile size; spend is
-    the colour."""
-    grouping = group_by(facts, INSTITUTION)
+    the colour.
+
+    Groups ALL values (``top_n=None``): a hierarchy is a whole-of-tree view —
+    no "Other" fold row, every affiliation renders at its place in the tree.
+    """
+    grouping = group_by(facts, INSTITUTION, top_n=None)
     by_name: dict[str, tuple[int, Decimal]] = {}
     for row in grouping.rows:
         amount = row.amount if row.amount is not None else Decimal(0)

@@ -20,7 +20,7 @@ def group_by(
     facts: Sequence[RequestFact],
     dimension: Dimension,
     *,
-    top_n: int = DEFAULT_TOP_N,
+    top_n: int | None = DEFAULT_TOP_N,
 ) -> Grouping:
     spend = dimension.money
     counts_values = Measure.PUBLICATIONS in dimension.measures()
@@ -63,6 +63,20 @@ def group_by(
         (label for label in counts if counts_values or amounts.get(label, ZERO) != ZERO),
         key=rank,
     )
+    if top_n is None:
+        # Unbounded: every value keeps its own row — a whole-of-set view
+        # (the institution treemap) must not fold anything into "Other".
+        rows = [row(label) for label in labels]
+        return Grouping(
+            dimension_id=dimension.id,
+            dimension_label=dimension.label,
+            measures=dimension.measures(),
+            non_additive=frozenset(
+                measure for measure in dimension.measures() if not dimension.is_additive(measure)
+            ),
+            rows=tuple(rows),
+        )
+
     rows = [row(label) for label in labels[:top_n]]
     folded = labels[top_n:]
     if folded:

@@ -196,6 +196,20 @@ def test__group_by__folds_rows_beyond_the_top_n_into_an_other_row() -> None:
     assert grouping.total(Measure.PUBLICATIONS) == 13
 
 
+def test__group_by__unbounded_top_n__keeps_every_value_without_an_other_row() -> None:
+    """``top_n=None`` is the whole-of-set view (the institution treemap): no
+    fold row, one row per value, in the spend-led rank."""
+    facts = tuple(make_fact(publisher=f"p{i:02d}") for i in range(1, 14))
+
+    grouping = group_by(facts, dimensions.by_id("publisher"), top_n=None)
+
+    assert [(r.label, r.publications) for r in grouping.rows] == [
+        (f"p{i:02d}", 1) for i in range(1, 14)
+    ]
+    assert all(not r.is_other for r in grouping.rows)
+    assert grouping.total(Measure.PUBLICATIONS) == 13
+
+
 def test__group_by__sums_amounts_in_the_other_row() -> None:
     facts = tuple(
         make_fact(publisher=publisher, paid_out_total=Decimal(f"{(i + 1)}.00"))
