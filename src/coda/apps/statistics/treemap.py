@@ -111,13 +111,13 @@ def institution_treemap(
                 "values": values,
                 "branchvalues": "remainder",
                 "customdata": [float(c) for c in colors],
-                # RdBu, reversed so high spend is red (hot); %{color} is the
-                # normalized colour value, never the amount — money renders
-                # from customdata.
+                # Blues: high spend = dark blue. %{color} is the normalized
+                # colour value, never the amount — money renders from
+                # customdata.
                 "marker": {
                     "colors": [float(c) for c in colors],
-                    "colorscale": "RdBu",
-                    "reversescale": True,
+                    "colorscale": "Blues",
+                    "reversescale": False,
                     "colorbar": {"title": {"text": "spend €"}, "thickness": 14},
                 },
                 "texttemplate": "%{label}<br>%{value} pub.<br>€%{customdata:,.2f}",
