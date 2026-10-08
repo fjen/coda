@@ -70,6 +70,15 @@ class Measure(StrEnum):
     FUNDED_BY = "funded_by"
 
 
+class ChartKind(StrEnum):
+    """Which figure the page renders per dimension (evaluation demo: the
+    same groupings, three encodings, switchable per URL)."""
+
+    SCATTER = "scatter"  # x = publications, y = spend, one dot per entity
+    BARS = "bars"  # one horizontal bar panel per measure, labels on the left
+    PIES = "pies"  # pie pair, labels left of the plots
+
+
 @dataclass(frozen=True, slots=True)
 class GroupRow:
     """One row of a grouping: a dimension value and the measures under it."""
@@ -130,9 +139,9 @@ class ColumnSpec:
 
 @dataclass(frozen=True, slots=True)
 class ChartSpec:
-    """One dimension: the figure JSON ``Plotly.newPlot`` consumes — one panel
-    per measure over the shared entity axis — and the exact values behind it,
-    so the template renders the section table without plotly (§9)."""
+    """One dimension: the figure JSON ``Plotly.newPlot`` consumes — one dot
+    per entity, publications on x, spend on y — and the exact values behind
+    it, so the template renders the section table without plotly (§9)."""
 
     dimension_id: str
     title: str

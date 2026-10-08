@@ -1,3 +1,4 @@
+{% load getitem %}
 {% comment %}
     Headline row + one section per dimension (plan §9): the measures' charts
     side by side over ONE exact-value table — count and spend per row, totals
@@ -15,6 +16,13 @@
        title="Show these funding requests in the list, with the active filters">Show the
     {{ headline.publications }} funding request{{ headline.publications|pluralize }} behind these
     numbers</a>
+    <span class="statistics-chart-switch">
+        {% for candidate in chart_kinds %}
+            <a href="{{ chart_switch_urls|getitem:candidate.value }}"
+               {% if candidate == chart_kind %}aria-current="true" class="statistics-chart-switch-active"{% endif %}
+            >{{ candidate.value }}</a>{% if not forloop.last %} · {% endif %}
+        {% endfor %}
+    </span>
 </p>
 <div class="statistics-headline">
     <article class="statistics-headline-card">

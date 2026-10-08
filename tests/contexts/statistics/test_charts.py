@@ -5,7 +5,6 @@ from tests.contexts.statistics.factories import institution, make_fact
 from coda.contexts.statistics import dimensions
 from coda.contexts.statistics.aggregation import group_by
 from coda.contexts.statistics.charts import (
-    MEASURE_COLORS,
     MEASURE_LABELS,
     NON_ADDITIVE_NOTE,
     build_figure,
@@ -24,27 +23,23 @@ def _charts_by_id(the_report: StatisticsReport) -> dict[str, object]:
     return {c.dimension_id: c for c in the_report.charts}
 
 
-def test__report__builds_one_figure_with_a_coloured_panel_per_measure() -> None:
+def test__report__builds_one_scatter_with_both_measures() -> None:
     grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"))
 
     figure = build_figure(grouping)
 
-    publications, spend = figure["data"]
-    assert [trace["type"] for trace in figure["data"]] == ["bar", "bar"]
-    assert [trace["orientation"] for trace in figure["data"]] == ["h", "h"]
-    # Shared entity axis in the table's row order — no per-measure re-sorting.
-    assert list(publications["y"]) == list(spend["y"]) == ["Elsevier", "Springer"]
-    assert [float(v) for v in publications["x"]] == [2.0, 1.0]
-    assert [float(v) for v in spend["x"]] == [150.0, 20.0]
-    # Separate scales side by side, one hue per measure, axis titles name them.
-    assert publications["xaxis"] == "x" and spend["xaxis"] == "x2"
-    assert publications["marker"]["color"] == MEASURE_COLORS[Measure.PUBLICATIONS]
-    assert spend["marker"]["color"] == MEASURE_COLORS[Measure.PAID_OUT]
+    assert [trace["type"] for trace in figure["data"]] == ["scatter"]
+    # One dot per entity, in the table's row order, named beside the dot.
+    trace = figure["data"][0]
+    assert [float(v) for v in trace["x"]] == [2.0, 1.0]
+    assert [float(v) for v in trace["y"]] == [150.0, 20.0]
+    assert list(trace["text"]) == ["Elsevier", "Springer"]
+    assert trace["mode"] == "markers+text"
+    # Separate axes, one per measure, titled.
     layout = figure["layout"]
     assert layout["xaxis"]["title"]["text"] == MEASURE_LABELS[Measure.PUBLICATIONS]
-    assert layout["xaxis2"]["title"]["text"] == MEASURE_LABELS[Measure.PAID_OUT]
-    assert layout["xaxis2"]["domain"] == [0.58, 1.0]
-    assert layout["yaxis"] == {"autorange": "reversed", "automargin": True}
+    assert layout["yaxis"]["title"]["text"] == MEASURE_LABELS[Measure.PAID_OUT]
+    assert not layout["showlegend"]
 
 
 def test__report__titles_name_the_dimension_and_its_measures() -> None:
@@ -72,7 +67,7 @@ def test__report__single_measure_dimensions_get_a_single_full_width_panel() -> N
     assert "xaxis2" not in by_id["cost_type"].figure["layout"]  # type: ignore[attr-defined]
     assert [c.measure for c in by_id["funder"].columns] == [Measure.PUBLICATIONS]  # type: ignore[attr-defined]
     assert all(
-        trace["type"] == "bar"
+        trace["type"] == "scatter"
         for chart in by_id.values()
         for trace in chart.figure["data"]  # type: ignore[attr-defined]
     )

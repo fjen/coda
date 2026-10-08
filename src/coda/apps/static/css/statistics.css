@@ -29,6 +29,19 @@ headline cards above them; this class only keeps the anchor id addressable. */
     max-width: 100%;
 }
 
+/* Chart-kind switcher (evaluation demo): small links beside the list link. */
+.statistics-chart-switch {
+    margin-left: 1rem;
+    font-size: 0.85rem;
+}
+.statistics-chart-switch a {
+    text-decoration: none;
+}
+.statistics-chart-switch-active {
+    font-weight: 700;
+    text-decoration: underline !important;
+}
+
 /* Plotly honors an explicit height; the treemap has no bar-count to size by. */
 .statistics-treemap {
     height: 480px;

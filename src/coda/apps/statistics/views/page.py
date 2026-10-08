@@ -14,7 +14,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -37,7 +37,13 @@ from coda.apps.statistics.drilldown import DrilldownLinks, list_view_url
 from coda.apps.statistics.treemap import institution_treemap
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
-from coda.contexts.statistics.dto import ChartSpec, Measure, RequestFact, StatisticsReport
+from coda.contexts.statistics.dto import (
+    ChartKind,
+    ChartSpec,
+    Measure,
+    RequestFact,
+    StatisticsReport,
+)
 
 _PAGE_URL = "statistics:page"
 _REGION_URL = "statistics:region"
@@ -84,8 +90,8 @@ class IncompleteInvoice:
 
 @dataclass(frozen=True)
 class ChartPanel:
-    """One dimension: the figure ``statistics.js`` paints — one colour-coded
-    panel per measure over the shared entity axis."""
+    """One dimension's figure for ``statistics.js``: one dot per entity,
+    publications on x, spend on y."""
 
     data_id: str
     title: str
@@ -140,7 +146,11 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
     )
     criteria, _sort_order = filter_form.search_criteria()
     facts = build_facts(queries.fetch_requests(criteria), GlobalPreferences.get_home_currency())
-    report = charts.report(facts, DIMENSIONS)
+    try:
+        kind = ChartKind(request.GET.get("chart", ChartKind.SCATTER))
+    except ValueError:
+        kind = ChartKind.SCATTER
+    report = charts.report(facts, DIMENSIONS, kind=kind)
 
     date_errors = filter_form.errors.get("date_range")
     summary = build_filter_summary(
@@ -164,6 +174,11 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
         "filter_clear_url": reverse(_PAGE_URL),
         "filter_list_id": _REGION_ELEMENT_ID,
         "list_view_url": list_view_url(request),
+        "chart_kind": kind,
+        "chart_kinds": list(ChartKind),
+        "chart_switch_urls": {
+            candidate: _chart_switch_url(request, candidate) for candidate in ChartKind
+        },
         "headline": report.headline,
         "incomplete_invoices": _incomplete_invoices(facts),
         "sections": _sections(
@@ -172,6 +187,13 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
         ),
         "institution_treemap": institution_treemap(facts, Institution.objects.all()),
     }
+
+
+def _chart_switch_url(request: HttpRequest, kind: ChartKind) -> str:
+    """The page URL with only the chart param swapped — filters preserved."""
+    params: QueryDict = request.GET.copy()
+    params["chart"] = kind
+    return build_url(_PAGE_URL, params)
 
 
 def _default_period_url(request: HttpRequest) -> str:
