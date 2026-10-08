@@ -74,8 +74,9 @@ def test__statistics_page__render__fits_a_fixed_query_budget(
     """The render's cost is fixed per view: the fact graph, the rail's facet
     choice lists, the drill-down lookup tables and exactly one round-trip for
     the configured vocabularies — the form and the drill-down share the page's
-    one pre-loaded provider."""
+    one pre-loaded provider. The institution treemap adds one query for the
+    hierarchy."""
     seed()
 
-    with django_assert_num_queries(48):
+    with django_assert_num_queries(49):
         assert goto(client).status_code == 200

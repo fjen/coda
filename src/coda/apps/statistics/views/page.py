@@ -27,12 +27,14 @@ from coda.apps.fundingrequests.forms import (
     parse_label_ids,
 )
 from coda.apps.fundingrequests.models import Label
+from coda.apps.institutions.models import Institution
 from coda.apps.invoices.models import Invoice
 from coda.apps.listfilters import ListRegionMixin, build_filter_summary, build_url
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.statistics import queries
 from coda.apps.statistics.dataset import build_facts
 from coda.apps.statistics.drilldown import DrilldownLinks, list_view_url
+from coda.apps.statistics.treemap import institution_treemap
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import ChartSpec, Measure, RequestFact, StatisticsReport
@@ -168,6 +170,7 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
             report,
             DrilldownLinks.build(request, region_url_name=_REGION_URL, vocabularies=vocabularies),
         ),
+        "institution_treemap": institution_treemap(facts, Institution.objects.all()),
     }
 
 

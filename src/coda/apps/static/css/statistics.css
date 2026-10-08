@@ -29,6 +29,11 @@ headline cards above them; this class only keeps the anchor id addressable. */
     max-width: 100%;
 }
 
+/* Plotly honors an explicit height; the treemap has no bar-count to size by. */
+.statistics-treemap {
+    height: 480px;
+}
+
 .statistics-caption {
     text-align: left;
     font-size: 0.8rem;

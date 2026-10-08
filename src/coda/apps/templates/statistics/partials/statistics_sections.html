@@ -47,6 +47,16 @@
         {% endfor %}
     </div>
 {% endif %}
+{% if institution_treemap %}
+    <article class="statistics-section" id="statistics-institution-hierarchy">
+        <h3>Institution hierarchy</h3>
+        {{ institution_treemap|json_script:"chart-institution-treemap" }}
+        <div class="statistics-chart statistics-treemap"
+             data-chart="chart-institution-treemap"
+             role="img"
+             aria-label="Institution hierarchy treemap: publications as area, spend as colour"></div>
+    </article>
+{% endif %}
 {% for section in sections %}
     <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
         <h3>{{ section.label }}</h3>
