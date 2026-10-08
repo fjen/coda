@@ -116,9 +116,9 @@ def institution_treemap(
                 # customdata.
                 "marker": {
                     "colors": [float(c) for c in colors],
-                    "colorscale": "Blues",
+                    "colorscale": "OrRd",
                     "reversescale": False,
-                    "colorbar": {"title": {"text": "spend €"}, "thickness": 14},
+                    "colorbar": {"title": {"text": "spend €"}},
                 },
                 "texttemplate": "%{label}<br>%{value} pub.<br>€%{customdata:,.2f}",
                 "hovertemplate": (
@@ -127,8 +127,9 @@ def institution_treemap(
             }
         ],
         "layout": {
-            "title": {"text": _title()},
-            "margin": {"l": 10, "r": 10, "t": 30, "b": 10},
+            "title": {"text": _title(), "x": 0.01, "xanchor": "left"},
+            # Two-line title needs real headroom or it sits on the tiles.
+            "margin": {"l": 10, "r": 10, "t": 64, "b": 10},
         },
         "config": {"responsive": True},
     }
@@ -152,7 +153,6 @@ def subtree_pks_of_all(
 
 def _title() -> str:
     return (
-        "Institution hierarchy — publications (area), spend incl. tax (colour). "
-        "A request counts in full under every affiliation (ADR-0007): subtrees "
-        "can overlap."
+        "Institution hierarchy — publications (area), spend incl. tax (colour).<br>"
+        "A request counts in full under every affiliation (ADR-0007): subtrees can overlap."
     )
