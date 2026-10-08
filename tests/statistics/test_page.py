@@ -33,7 +33,7 @@ from coda.contexts.statistics.dto import Measure
 from coda.domain.money import Currency
 from coda.domain.publication import License, OpenAccessType
 from tests import modelfactory
-from tests.filterdom import walk
+from tests.filterdom import _attrs, walk
 from tests.statistics import helpers
 
 if TYPE_CHECKING:
@@ -320,14 +320,17 @@ def test__statistics_page__non_additive_dimension__shows_note_instead_of_total(
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
-def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
+def test__statistics_page__chart_rows__link_to_the_statistics_region(
     client: Client,
 ) -> None:
+    """§2 #7: clicking a row filters the statistics page itself — the link
+    carries the row's facet value plus the active filters, and a value already
+    among them toggles off."""
     fixture = seed()
 
     response = goto(client)
     sections = sections_by_id(response)
-    list_url = reverse("fundingrequests:list")
+    region_url = reverse("statistics:region")
 
     expected: dict[str, tuple[DimensionSection, str, str, str]] = {
         "journal": (
@@ -395,7 +398,7 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
     for dimension_id, (section, label, param, value) in expected.items():
         row = row_by_label(section, label)
         assert row.link is not None, dimension_id
-        assert row.link.startswith(list_url), dimension_id
+        assert row.link.startswith(region_url), dimension_id
         params = query_params(row.link)
         assert params[param] == [value], dimension_id
         assert params["start_date"] == ["2026-01-01"], dimension_id
@@ -408,6 +411,38 @@ def test__statistics_page__chart_rows__drill_down_to_the_filtered_request_list(
     contract_params = query_params(contract_row.link)
     assert contract_params["contract_name"] == [str(fixture.contract.pk)]
     assert contract_params["contract_year"] == [str(fixture.contract_year)]
+
+    # Toggle: filtering by the journal again removes it from the params.
+    filtered = goto(client, journal=str(fixture.journal.pk))
+    journal_row = row_by_label(sections_by_id(filtered)["journal"], fixture.journal.title)
+    assert journal_row.link is not None
+    assert "journal" not in query_params(journal_row.link)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__statistics_page__offers_one_link_into_the_request_list(
+    client: Client,
+) -> None:
+    """The page's bridge into the data: one link by the headline carrying the
+    page's whole filter set — not one per chart row."""
+    seed()
+
+    response = goto(client, license=License.CC_BY.value)
+    assert response.context["list_view_url"].startswith(reverse("fundingrequests:list"))
+    list_params = query_params(response.context["list_view_url"])
+    assert list_params["license"] == [License.CC_BY.value]
+    assert list_params["start_date"] == ["2026-01-01"]
+    list_view_url_value = response.context["list_view_url"]
+
+    html = parse_html(response.content.decode())
+    list_links = [
+        el for el in walk(html) if el.name == "a" and _attrs(el).get("href") == list_view_url_value
+    ]
+    assert len(list_links) == 1
+    assert _attrs(list_links[0]).get("title") == (
+        "Show these funding requests in the list, with the active filters"
+    )
 
 
 @pytest.mark.django_db
@@ -460,7 +495,7 @@ def test__statistics_page__publication_without_journal_or_publisher__forms_unkno
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
-def test__statistics_page__active_filters__narrow_every_chart_and_survive_in_drill_downs(
+def test__statistics_page__active_filters__narrow_every_chart_and_survive_in_row_links(
     client: Client,
 ) -> None:
     seed()
@@ -477,15 +512,16 @@ def test__statistics_page__active_filters__narrow_every_chart_and_survive_in_dri
     link_params = query_params(journal_link)
     assert link_params["license"] == [License.CC_BY.value]
     assert link_params["journal"] == [str(funded_journal_pk())]
+    assert journal_link.startswith(reverse("statistics:region"))
 
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("logged_in")
-def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_list(
+def test__statistics_page__row_links__reproduce_their_chart_sets_in_the_region(
     client: Client,
 ) -> None:
-    """Round-trip (§2 #7, plan §11): loading a row's link as the list view
-    yields exactly the requests the chart row counted, per facet."""
+    """Round-trip (§2 #7, plan §11): loading a row's link as the statistics
+    region yields exactly the requests the chart row counted, per facet."""
     fixture = seed()
     sections = sections_by_id(goto(client))
 
@@ -527,11 +563,18 @@ def test__statistics_page__drill_down_links__reproduce_their_chart_sets_in_the_l
         assert link is not None, dimension_id
         assert query_params(link)[param] == [value], dimension_id
 
-        list_response = client.get(link)
+        region_response = client.get(link, headers={"hx-request": "true"})
 
-        assert list_response.status_code == HTTPStatus.OK, dimension_id
-        titles = {str(item.publication_title) for item in list_response.context["entities"]}
-        assert titles == {"Funded paper"}, dimension_id
+        assert region_response.status_code == HTTPStatus.OK, dimension_id
+        # The filtered region's own section counts exactly the row's set —
+        # but a partition dimension (funding_source) legitimately keeps the
+        # "Unassigned" remainder row of the same requests.
+        section_rows = sections_by_id(region_response)[dimension_id].rows
+        labels = [row.label for row in section_rows if not row.is_other]
+        if dimension_id == "funding_source":
+            assert labels == ["Central Fund", "Unassigned"], dimension_id
+        else:
+            assert labels == [label], dimension_id
 
 
 @pytest.mark.usefixtures("logged_in")

@@ -1,6 +1,7 @@
 """Browser check (plan §11 last bullet): a real browser paints the server's
-figure JSON — one svg per [data-chart] mount — and a drill-down click lands on
-the funding-request list filtered to exactly the clicked chart row's set."""
+figure JSON — one svg per [data-chart] mount — a chart-row click filters the
+statistics page in place, and the page's global link lands on the
+funding-request list with the active filters."""
 
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -27,11 +28,12 @@ def link_types() -> None:
     LinkType.objects.get_or_create(name="ISBN")
 
 
-def _goto_statistics(page: Page, live_server: LiveServer) -> None:
+def _goto_statistics(page: Page, live_server: LiveServer, **extra: str) -> None:
     # Desktop width like the other filter-rail UI tests; the period goes into
     # the URL so the page renders immediately — no redirect in front of charts.
     page.set_viewport_size({"width": 1440, "height": 900})
-    page.goto(f"{live_server.url}{reverse('statistics:page')}?{urlencode(PERIOD)}")
+    params = urlencode({**PERIOD, **extra})
+    page.goto(f"{live_server.url}{reverse('statistics:page')}?{params}")
     page.wait_for_function("() => typeof Plotly !== 'undefined'")
 
 
@@ -62,20 +64,46 @@ def test__statistics_page__plotly__renders_one_svg_per_chart_mount(
 
 @pytest.mark.ui_test
 @pytest.mark.django_db(transaction=True)
-def test__statistics_page__drill_down__click_lands_on_the_filtered_list(
+def test__statistics_page__row_link__filters_the_page_in_place(
     link_types: None, coda_page: Page, live_server: LiveServer
 ) -> None:
+    """Clicking a table row filters the statistics page itself: the region
+    swaps, the URL gains the facet param, and the headline narrows to the
+    clicked row's set. Clicking again toggles the filter off."""
     fixture = seed()
     _goto_statistics(coda_page, live_server)
     _wait_for_charts(coda_page)
 
-    coda_page.locator("#statistics-journal").get_by_role(
-        "link", name=fixture.journal.title
-    ).first.click()
+    row_link = coda_page.locator(
+        "#statistics-journal table.statistics-values th a",
+    ).filter(has_text=fixture.journal.title)
+    row_link.click()
+
+    coda_page.wait_for_url(lambda url: f"journal={fixture.journal.pk}" in url)
+    expect(coda_page.locator("#statistics-region")).to_contain_text("Publications funded")
+    expect(coda_page.locator(".statistics-headline-value").first).to_have_text("1")
+
+    # Toggle off: the row link now carries the filter-removing URL.
+    row_link.click()
+    coda_page.wait_for_url(lambda url: "journal=" not in url)
+    expect(coda_page.locator(".statistics-headline-value").first).to_have_text("3")
+
+
+@pytest.mark.ui_test
+@pytest.mark.django_db(transaction=True)
+def test__statistics_page__global_list_link__lands_on_the_filtered_list(
+    link_types: None, coda_page: Page, live_server: LiveServer
+) -> None:
+    """The page's one link into the funding-request list carries the active
+    filters — the data behind the numbers."""
+    fixture = seed()
+    _goto_statistics(coda_page, live_server, journal=str(fixture.journal.pk))
+    _wait_for_charts(coda_page)
+
+    coda_page.get_by_role("link", name="behind these numbers").click()
 
     coda_page.wait_for_url(lambda url: "/fundingrequests/list/" in url)
     assert f"journal={fixture.journal.pk}" in coda_page.url
-
     listing = coda_page.locator(filter_ui_selectors.FUNDINGREQUEST_LIST)
     expect(listing.get_by_text("Funded paper")).to_be_visible()
     expect(listing.get_by_text("Paper without invoice")).to_be_hidden()

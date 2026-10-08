@@ -1,14 +1,18 @@
-"""Chart row -> funding-request list URL (plan §2 #7, §8).
+"""Chart row -> statistics filter link (§2 #7).
 
-A chart row's drill-down is literally a list-view URL: the shared form's facet
-params plus the row's value, so loading it reproduces exactly the chart's set —
-the active filters are preserved, the row's value is added (multi-valued facets)
-or set (single-valued facets).
+Clicking a chart row filters the statistics page itself: the row's value joins
+the page's facet params and the region re-renders with exactly that set — every
+filter state stays reproducible as a URL (§2 #7). A value already among the
+active filters toggles off: the link *removes* it instead of adding it.
+
+The funding-request list is reached through the page's one global link
+(``list_view_url``), which carries the same facet params — there are no
+per-row list links.
 
 Rows grouped by *name* resolve to facet values by name — every model row sharing
 the name contributes its id, so the link covers precisely the chart's merged set.
-The synthetic rows ("Other", "Unknown", "Unassigned") have no drill-down:
-the list view could not reproduce their set.
+The synthetic rows ("Other", "Unknown", "Unassigned") have no link: the shared
+form cannot express their set.
 """
 
 from collections import defaultdict
@@ -64,19 +68,26 @@ def facet_param_names(dimension_id: str) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class DrilldownLinks:
-    """Resolves chart rows to list URLs; the per-dimension lookup tables are
-    built once per page render."""
+    """Resolves chart rows to statistics filter links; the per-dimension lookup
+    tables are built once per page render."""
 
     request: HttpRequest
+    _region_url_name: str
     _by_name: Mapping[str, dict[str, list[str]]]
 
     @classmethod
     def build(
-        cls, request: HttpRequest, *, vocabularies: PreloadedVocabularyProvider | None = None
+        cls,
+        request: HttpRequest,
+        *,
+        region_url_name: str,
+        vocabularies: PreloadedVocabularyProvider | None = None,
     ) -> "DrilldownLinks":
         if vocabularies is None:
             vocabularies = GlobalPreferences.preloaded()
-        return cls(request=request, _by_name=_lookup_tables(vocabularies))
+        return cls(
+            request=request, _region_url_name=region_url_name, _by_name=_lookup_tables(vocabularies)
+        )
 
     def link(self, dimension_id: str, row: GroupRow) -> str | None:
         if row.is_other or row.is_unknown or row.is_unassigned:
@@ -116,10 +127,23 @@ class DrilldownLinks:
         for key, (values, multi) in filters.items():
             if multi:
                 existing = params.getlist(key)
-                params.setlist(key, existing + [v for v in values if v not in existing])
+                if values[0] in existing:
+                    # Toggle off: the value is already filtering the page.
+                    params.setlist(key, [v for v in existing if v not in values])
+                else:
+                    params.setlist(key, existing + [v for v in values if v not in existing])
             else:
-                params.setlist(key, values)
-        return build_url(_LIST_URL, params)
+                current = params.getlist(key)
+                params.setlist(key, [] if values[0] in current else values)
+        return build_url(self._region_url_name, params)
+
+
+def list_view_url(request: HttpRequest) -> str:
+    """The funding-request list with the page's whole filter set (§2 #7):
+    the one bridge from the statistics page into the data behind it."""
+    params: QueryDict = request.GET.copy()
+    params.pop("page", None)
+    return build_url(_LIST_URL, params)
 
 
 def _lookup_tables(vocabularies: PreloadedVocabularyProvider) -> dict[str, dict[str, list[str]]]:

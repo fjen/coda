@@ -32,7 +32,7 @@ from coda.apps.listfilters import ListRegionMixin, build_filter_summary, build_u
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.statistics import queries
 from coda.apps.statistics.dataset import build_facts
-from coda.apps.statistics.drilldown import DrilldownLinks
+from coda.apps.statistics.drilldown import DrilldownLinks, list_view_url
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import ChartSpec, Measure, RequestFact, StatisticsReport
@@ -49,9 +49,9 @@ _CHART_BASE_PX = 60
 
 @dataclass(frozen=True)
 class DimensionRow:
-    """One row of a dimension's shared exact-value table; ``link`` is the
-    drill-down URL reproducing the row's set, None when it cannot be expressed
-    as list filters (Other/Unknown/Unassigned)."""
+    """One row of a dimension's shared exact-value table; ``link`` filters the
+    statistics page to the row's set (toggle off when already active), None
+    when it cannot be expressed as list filters (Other/Unknown/Unassigned)."""
 
     label: str
     publications: int
@@ -161,9 +161,13 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
         "filter_errors": summary.errors,
         "filter_clear_url": reverse(_PAGE_URL),
         "filter_list_id": _REGION_ELEMENT_ID,
+        "list_view_url": list_view_url(request),
         "headline": report.headline,
         "incomplete_invoices": _incomplete_invoices(facts),
-        "sections": _sections(report, DrilldownLinks.build(request, vocabularies=vocabularies)),
+        "sections": _sections(
+            report,
+            DrilldownLinks.build(request, region_url_name=_REGION_URL, vocabularies=vocabularies),
+        ),
     }
 
 
@@ -187,21 +191,22 @@ def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[Dimension
         spec = specs.get(dimension.id)
         if spec is None:
             continue
+        rows = tuple(
+            DimensionRow(
+                label=row.label,
+                publications=row.publications,
+                amount=row.amount,
+                link=links.link(dimension.id, row),
+                is_other=row.is_other,
+            )
+            for row in spec.rows
+        )
         sections.append(
             DimensionSection(
                 dimension_id=dimension.id,
                 label=dimension.label,
                 chart=_panel(spec),
-                rows=tuple(
-                    DimensionRow(
-                        label=row.label,
-                        publications=row.publications,
-                        amount=row.amount,
-                        link=links.link(dimension.id, row),
-                        is_other=row.is_other,
-                    )
-                    for row in spec.rows
-                ),
+                rows=rows,
                 columns=tuple(
                     MeasureColumn(
                         measure=column.measure,
