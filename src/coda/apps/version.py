@@ -11,7 +11,6 @@ import logging
 import subprocess
 from functools import lru_cache
 from pathlib import Path
-
 from urllib.parse import quote, urlparse
 
 import httpx
@@ -19,7 +18,6 @@ from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
-
 
 #: How long a fetched upstream SHA is considered fresh.
 FRESH_TTL = 3600 * 24
