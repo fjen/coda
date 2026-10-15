@@ -116,35 +116,35 @@ def _scatter_figure(grouping: Grouping) -> dict[str, Any]:
 
 
 def _bars_figure(grouping: Grouping) -> dict[str, Any]:
-    """Horizontal bars: one panel per measure, each on its own x-domain, the
-    entity labels on the LEFT (one y axis, automargin-sized once). No sign
-    tricks — a label column can't collide, a bar length stays exact. The
-    exact value sits at each bar tip, so no one has to trace gridlines, and
-    the axis gets headroom for the labels."""
+    """Vertical columns: one full-width panel per measure, stacked, the entity
+    names under the columns on the shared X axis (rendered once, under the
+    bottom panel). The figure width never depends on label length, so sections
+    don't jump horizontally when filters change. Long names rotate 45°, the
+    exact value sits at each column tip, and the value scale keeps headroom
+    for those labels."""
     measures = grouping.measures
-    domains = [[0.0, 1.0]] if len(measures) == 1 else [[0.0, 0.42], [0.58, 1.0]]
+    domains = [[0.0, 1.0]] if len(measures) == 1 else [[0.0, 0.45], [0.55, 1.0]]
     figure = go.Figure()
     axes: dict[str, Any] = {}
+    annotations: list[dict[str, Any]] = []
     for index, measure in enumerate(measures):
         values = [_row_value(row, measure) for row in grouping.rows]
         figure.add_trace(
             go.Bar(
-                x=values,
-                y=[row.label for row in grouping.rows],
-                orientation="h",
+                x=[row.label for row in grouping.rows],
+                y=values,
                 name=MEASURE_LABELS[measure],
                 marker_color=MEASURE_COLORS[measure],
-                xaxis="x" if index == 0 else f"x{index + 1}",
+                yaxis="y" if index == 0 else f"y{index + 1}",
                 text=[_bar_label(measure, value) for value in values],
                 textposition="outside",
                 cliponaxis=False,
-                hovertemplate="%{y}: %{x:,.2f}<extra></extra>",
+                hovertemplate="%{x}: %{y:,.2f}<extra></extra>",
             )
         )
-        axis_name = "xaxis" if index == 0 else f"xaxis{index + 1}"
+        axis_name = "yaxis" if index == 0 else f"yaxis{index + 1}"
         axes[axis_name] = {
             "domain": domains[index],
-            "title_text": MEASURE_LABELS[measure],
             "tickformat": _tick_format(measure),
             # All-zero data must not autorange below zero.
             "range": [
@@ -152,11 +152,36 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
                 _label_headroom(measure, max(values)) if max(values, default=0) > 0 else 1,
             ],
         }
+        # Axis titles of stacked panels would overlap at the shared left edge;
+        # a paper annotation above each panel names it in reading direction.
+        annotations.append(
+            {
+                "x": 0,
+                "xref": "paper",
+                "xanchor": "left",
+                "y": domains[index][1] - 0.012,
+                "yref": "paper",
+                "yanchor": "bottom",
+                "text": MEASURE_LABELS[measure],
+                "showarrow": False,
+                "font": {"size": 12},
+            }
+        )
     figure.update_layout(
         **axes,
-        yaxis={"autorange": "reversed", "automargin": True},
+        xaxis={
+            "automargin": True,
+            "tickangle": -45,
+            "type": "category",
+            "domain": [0.0, 1.0],
+        },
+        # Fixed height: the rotated label band must not change the figure's
+        # footprint (and the page flow) when the label set changes.
+        height=480,
+        annotations=annotations,
         showlegend=False,
-        margin={"l": 10, "r": 30, "t": 10, "b": 40},
+        # Top margin holds the topmost panel's label.
+        margin={"l": 10, "r": 10, "t": 22, "b": 10},
     )
     json: dict[str, Any] = figure.to_plotly_json()
     return json
