@@ -257,13 +257,18 @@ def _panel(spec: ChartSpec) -> ChartPanel:
 
 
 def _figure_with_height(spec: ChartSpec) -> dict[str, Any]:
-    """Size the figure server-side: one bar band per row — the container has no
-    intrinsic height, and Plotly honors an explicit layout height."""
+    """Size figures that don't carry their own height (scatter, pies): one
+    bar band per row — the container has no intrinsic height, and Plotly
+    honors an explicit layout height. The bars figure sets a fixed height
+    itself, so its layout wins here."""
+    figure = spec.figure
+    if figure.get("layout", {}).get("height") is not None:
+        return figure
     layout = {
-        **spec.figure.get("layout", {}),
+        **figure.get("layout", {}),
         "height": _CHART_BASE_PX + _CHART_ROW_PX * len(spec.rows),
     }
-    return {**spec.figure, "layout": layout}
+    return {**figure, "layout": layout}
 
 
 def _incomplete_invoices(facts: Sequence[RequestFact]) -> tuple[IncompleteInvoice, ...]:
