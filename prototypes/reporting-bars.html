@@ -1,0 +1,181 @@
+<!doctype html>
+<!-- Throwaway prototypes for the funding-request statistics dashboard, bar
+     encodings only. Static: open this file directly (or serve prototypes/).
+     Data shape mirrors contexts/statistics Grouping: rows of {label,
+     publications, spend}. Variant D additionally assumes a per-row split into
+     contract/APC/book-fee spend, which dataset.py does NOT produce yet. -->
+<html>
+<head>
+<meta charset="utf-8">
+<script src="../src/coda/apps/static/js/vendor/plotly.min.js"></script>
+<style>
+  body { font: 13px system-ui; padding: 1rem; margin: 0 0 40px; background: #fafafa; }
+  h1 { font-size: 17px; margin: .4rem 0 1rem; }
+  .c { width: 900px; height: 420px; border: 1px solid #ddd; border-radius: 8px;
+       background: #fff; padding: .6rem; margin-bottom: 1.4rem; }
+  h2 { font-size: 14px; margin: .2rem 0; }
+  .note { color: #555; margin: .1rem 0 .6rem; font-size: 12px; }
+  .pro { color: #1a7f37; font-size: 12px; }
+  .con { color: #b42318; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Funding Request Statistics — bar-chart prototypes</h1>
+
+<!-- ===================== data ===================== -->
+<script>
+const rows = [
+  { label: "TU Braunschweig",                 pubs: 412, spend: 187342.50, contract: 103038, apc: 56103, book: 28201 },
+  { label: "Universität Göttingen",           pubs: 351, spend: 154209.10, contract: 84715,  apc: 46263, book: 23231 },
+  { label: "Hannover Medizinische Hochschule",pubs: 203, spend: 98754.75,  contract: 54315,  apc: 29626, book: 14814 },
+  { label: "Universität Oldenburg",           pubs: 158, spend: 71230.00,  contract: 39177,  apc: 21369, book: 10684 },
+  { label: "Ostfalia Hochschule",             pubs: 97,  spend: 40982.30,  contract: 22540,  apc: 12295, book: 6147 },
+  { label: "HAWK Hildesheim",                 pubs: 64,  spend: 28110.90,  contract: 15461,  apc: 8433,  book: 4217 },
+  { label: "Hochschule Emden/Leer",           pubs: 41,  spend: 19477.20,  contract: 10712,  apc: 5843,  book: 2922 },
+  { label: "Hochschule Osnabrück",            pubs: 33,  spend: 15002.60,  contract: 8251,   apc: 4501,  book: 2251 },
+];
+const labels = rows.map(r => r.label);
+const pubs   = rows.map(r => r.pubs);
+const spend  = rows.map(r => r.spend);
+const PUB = "#0072B2", SPEND = "#E69F00";
+const APCR = "#56B4E9", BOOK = "#009E73";
+const keur = v => (v / 1000).toLocaleString("de-DE", { maximumFractionDigits: 0 }) + " k€";
+
+const BASE = {
+  showlegend: false,
+  paper_bgcolor: "rgba(0,0,0,0)",
+  plot_bgcolor: "rgba(0,0,0,0)",
+  font: { family: "system-ui", size: 12 },
+};
+const EUR_TICK = t => (t >= 1000 ? (t/1000).toLocaleString("de-DE", {maximumFractionDigits: 0}) + "k" : t);
+
+// Shared: one horizontal bar trace with white value text inside
+function spendAnnotatedTrace(textposition, anchor) {
+  return {
+    type: "bar", orientation: "h",
+    x: spend, y: labels,
+    marker: { color: SPEND },
+    text: spend.map((v, i) => `${keur(v)} · ${pubs[i]} pubs`),
+    textposition, textfont: { color: "white" },
+    insidetextanchor: anchor,
+    hovertemplate: "%{y}: %{x:,.2f} € spend, %{customdata} publications<extra></extra>",
+    customdata: pubs,
+    cliponaxis: false,
+  };
+}
+</script>
+
+<!-- ===================== A: current ===================== -->
+<h2>A — current two-panel bars (baseline)</h2>
+<p class="note">Each measure its own panel over the shared label axis. What the page shows today.</p>
+<div id="a" class="c"></div>
+<script>
+Plotly.newPlot("a", [
+  { type: "bar", orientation: "h", x: pubs,  y: labels, marker: { color: PUB   }, xaxis: "x"  },
+  { type: "bar", orientation: "h", x: spend, y: labels, marker: { color: SPEND }, xaxis: "x2" },
+], {
+  ...BASE,
+  xaxis:  { domain: [0.0, 0.42], title: { text: "publications" } },
+  xaxis2: { domain: [0.58, 1.0], title: { text: "spend incl. tax" } },
+  yaxis: { autorange: "reversed", automargin: true },
+  margin: { l: 10, r: 10, t: 10, b: 40 }, height: 420,
+}, { displayModeBar: false, responsive: true });
+</script>
+
+<!-- ===================== B: labels at tips ===================== -->
+<h2>B — value labels at bar tips + formatted ticks</h2>
+<p class="note">Same two-panel layout, numbers printed at each bar end; axis ticks shortened
+(50k, 100k). No cross-referencing the axis needed. Drop-in change to _bars_figure.</p>
+<p class="pro">+ every value readable without tracing gridlines &nbsp;·&nbsp; same layout as today</p>
+<p class="con">− labels need headroom (x-range padded ~18%) &nbsp;·&nbsp; two axes still read as two charts</p>
+<div id="b" class="c"></div>
+<script>
+Plotly.newPlot("b", [
+  { type: "bar", orientation: "h", x: pubs, y: labels, marker: { color: PUB },
+    xaxis: "x", text: pubs.map(String), textposition: "outside", cliponaxis: false,
+    hovertemplate: "%{y}: %{x:,} publications<extra></extra>" },
+  { type: "bar", orientation: "h", x: spend, y: labels, marker: { color: SPEND },
+    xaxis: "x2", text: spend.map(keur), textposition: "outside", cliponaxis: false,
+    hovertemplate: "%{y}: %{x:,.2f} €<extra></extra>" },
+], {
+  ...BASE,
+  xaxis:  { domain: [0.0, 0.42], title: { text: "publications" }, range: [0, Math.max(...pubs) * 1.18] },
+  xaxis2: { domain: [0.58, 1.0], title: { text: "spend incl. tax (€)" }, range: [0, Math.max(...spend) * 1.18],
+            tickformat: "~s" },
+  yaxis: { autorange: "reversed", automargin: true },
+  margin: { l: 10, r: 30, t: 10, b: 40 }, height: 420,
+}, { displayModeBar: false, responsive: true });
+</script>
+
+<!-- ===================== C: single spend panel ===================== -->
+<h2>C — single spend panel, publications annotated inside the bar</h2>
+<p class="note">Spend is the headline measure; the publication count rides along as white text
+inside the bar. One axis, full width, longest labels get the most room.</p>
+<p class="pro">+ half the vertical space per figure &nbsp;·&nbsp; spend comparison is dead easy</p>
+<p class="con">− publications lose their own scale (annotation only) &nbsp;·&nbsp; tiny rows can't fit the text (fallback: outside)</p>
+<div id="c" class="c"></div>
+<script>
+Plotly.newPlot("c", [spendAnnotatedTrace("inside", "end")], {
+  ...BASE,
+  xaxis: { title: { text: "spend incl. tax (€)" }, tickformat: "~s" },
+  yaxis: { autorange: "reversed", automargin: true },
+  margin: { l: 10, r: 10, t: 10, b: 40 }, height: 420,
+}, { displayModeBar: false, responsive: true });
+</script>
+
+<!-- ===================== D: stacked composition ===================== -->
+<h2>D — stacked spend composition</h2>
+<p class="note">Spend split per row into contract / APC / book fees. Answers "where does the
+money go" per institution — a question no current view can answer.</p>
+<p class="pro">+ new information per row &nbsp;·&nbsp; still exact totals (segments sum to the bar)</p>
+<p class="con">− needs a split measure in RequestFact (dataset.py + dto change) &nbsp;·&nbsp; segment comparison across rows is hard (stacked, not grouped)</p>
+<div id="d" class="c"></div>
+<script>
+Plotly.newPlot("d", [
+  { type: "bar", orientation: "h", x: rows.map(r => r.contract), y: labels, name: "Contract",
+    marker: { color: PUB },   hovertemplate: "%{y} — Contract: %{x:,.0f} €<extra></extra>" },
+  { type: "bar", orientation: "h", x: rows.map(r => r.apc),      y: labels, name: "APC",
+    marker: { color: APCR },  hovertemplate: "%{y} — APC: %{x:,.0f} €<extra></extra>" },
+  { type: "bar", orientation: "h", x: rows.map(r => r.book),     y: labels, name: "Book fees",
+    marker: { color: BOOK },  hovertemplate: "%{y} — Book fees: %{x:,.0f} €<extra></extra>" },
+], {
+  ...BASE,
+  barmode: "stack",
+  xaxis: { title: { text: "spend incl. tax (€)" }, tickformat: "~s" },
+  yaxis: { autorange: "reversed", automargin: true },
+  legend: { orientation: "h", yanchor: "bottom", y: 1.02, x: 0 },
+  showlegend: true,
+  margin: { l: 10, r: 10, t: 34, b: 40 }, height: 420,
+}, { displayModeBar: false, responsive: true });
+</script>
+
+<!-- ===================== E: B + C combo ===================== -->
+<h2>E — spend panel with labels + small publications strip</h2>
+<p class="note">C's single spend panel, plus a thin publications bar strip underneath sharing
+the same rows — publications keep their own scale, labels stay readable.</p>
+<p class="pro">+ both measures keep exact, labeled values &nbsp;·&nbsp; compact two-row figure</p>
+<p class="con">− tallest/complex figure of the set &nbsp;·&nbsp; needs two y-axes mirrored</p>
+<div id="e" class="c"></div>
+<script>
+Plotly.newPlot("e", [
+  { type: "bar", orientation: "h", x: spend, y: labels, xaxis: "x",  yaxis: "y",
+    marker: { color: SPEND }, text: spend.map(keur), textposition: "outside", cliponaxis: false,
+    hovertemplate: "%{y}: %{x:,.2f} €<extra></extra>" },
+  { type: "bar", orientation: "h", x: pubs, y: labels, xaxis: "x2", yaxis: "y2",
+    marker: { color: PUB }, text: pubs.map(String), textposition: "outside", cliponaxis: false,
+    hovertemplate: "%{y}: %{x:,} publications<extra></extra>" },
+], {
+  ...BASE,
+  xaxis:  { domain: [0.0, 1.0], anchor: "y",  title: { text: "spend incl. tax (€)" }, tickformat: "~s",
+            range: [0, Math.max(...spend) * 1.16] },
+  xaxis2: { domain: [0.0, 1.0], anchor: "y2", title: { text: "publications" },
+            range: [0, Math.max(...pubs) * 1.16] },
+  yaxis:  { autorange: "reversed", automargin: true, domain: [0.55, 1.0] },
+  yaxis2: { autorange: "reversed", automargin: true, domain: [0.0, 0.42], matches: "y",
+            showticklabels: false },
+  margin: { l: 10, r: 30, t: 10, b: 40 }, height: 520,
+}, { displayModeBar: false, responsive: true });
+</script>
+
+</body>
+</html>

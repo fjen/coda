@@ -8,6 +8,7 @@ scale — and a server-side PDF renderer can reuse the same figures (plan §13).
 Exact values are NOT here — the template renders the section table.
 """
 
+import math
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -117,31 +118,45 @@ def _scatter_figure(grouping: Grouping) -> dict[str, Any]:
 def _bars_figure(grouping: Grouping) -> dict[str, Any]:
     """Horizontal bars: one panel per measure, each on its own x-domain, the
     entity labels on the LEFT (one y axis, automargin-sized once). No sign
-    tricks — a label column can't collide, a bar length stays exact."""
+    tricks — a label column can't collide, a bar length stays exact. The
+    exact value sits at each bar tip, so no one has to trace gridlines, and
+    the axis gets headroom for the labels."""
     measures = grouping.measures
     domains = [[0.0, 1.0]] if len(measures) == 1 else [[0.0, 0.42], [0.58, 1.0]]
     figure = go.Figure()
     axes: dict[str, Any] = {}
     for index, measure in enumerate(measures):
+        values = [_row_value(row, measure) for row in grouping.rows]
         figure.add_trace(
             go.Bar(
-                x=[_row_value(row, measure) for row in grouping.rows],
+                x=values,
                 y=[row.label for row in grouping.rows],
                 orientation="h",
                 name=MEASURE_LABELS[measure],
                 marker_color=MEASURE_COLORS[measure],
                 xaxis="x" if index == 0 else f"x{index + 1}",
+                text=[_bar_label(measure, value) for value in values],
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate="%{y}: %{x:,.2f}<extra></extra>",
             )
         )
-        axes["xaxis" if index == 0 else f"xaxis{index + 1}"] = {
+        axis_name = "xaxis" if index == 0 else f"xaxis{index + 1}"
+        axes[axis_name] = {
             "domain": domains[index],
             "title_text": MEASURE_LABELS[measure],
+            "tickformat": _tick_format(measure),
+            # All-zero data must not autorange below zero.
+            "range": [
+                0,
+                _label_headroom(measure, max(values)) if max(values, default=0) > 0 else 1,
+            ],
         }
     figure.update_layout(
         **axes,
         yaxis={"autorange": "reversed", "automargin": True},
         showlegend=False,
-        margin={"l": 10, "r": 10, "t": 10, "b": 40},
+        margin={"l": 10, "r": 30, "t": 10, "b": 40},
     )
     json: dict[str, Any] = figure.to_plotly_json()
     return json
@@ -265,6 +280,30 @@ def report(
 
 def _title(dimension_label: str, measures: tuple[Measure, ...]) -> str:
     return f"{dimension_label} — {' & '.join(MEASURE_LABELS[m] for m in measures)}"
+
+
+def _bar_label(measure: Measure, value: float) -> str:
+    """The exact value at the bar tip, compact. Money rounds UP to k€, so a
+    label never understates what was spent; the exact figure is in the table
+    below the chart."""
+    if not value:
+        return ""  # no label on zero-height bars: nothing to annotate
+    if measure is Measure.PUBLICATIONS:
+        return f"{value:,}"
+    thousands = float(value) / 1000
+    rounded = math.ceil(round(thousands, 6))
+    return f"{rounded:,.0f} k€"
+
+
+def _label_headroom(measure: Measure, max_value: float) -> float:
+    """X-range so the outside label at the longest bar still fits."""
+    headroom = 1.18 if measure is Measure.PUBLICATIONS else 1.30
+    return max_value * headroom
+
+
+def _tick_format(measure: Measure) -> str:
+    """SI ticks (50k, 150k) for money; plain numbers for counts."""
+    return "~s" if measure is not Measure.PUBLICATIONS else ","
 
 
 def _row_value(row: GroupRow, measure: Measure) -> int | float:
