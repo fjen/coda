@@ -167,6 +167,14 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
                 "font": {"size": 12},
             }
         )
+    # Cap the rendered bar thickness: with few categories plotly stretches
+    # each bar over its whole slot (a one-row figure draws a 1100px bar).
+    # bargap is the empty fraction of a slot, so a slot of slot_px px yields
+    # bars of (1 - bargap) * slot_px px.
+    MAX_BAR_PX = 90
+    rows = len(grouping.rows)
+    panel_px = 1100  # typical plot width; bargap only needs to be close
+    bargap = max(0.3, 1.0 - MAX_BAR_PX / (panel_px / max(rows, 1)))
     figure.update_layout(
         **axes,
         xaxis={
@@ -175,9 +183,11 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
             "type": "category",
             "domain": [0.0, 1.0],
         },
-        # Fixed height: the rotated label band must not change the figure's
-        # footprint (and the page flow) when the label set changes.
+        # One fixed height for every figure: the rotated label band must not
+        # change the figure's footprint (and the page flow) when the label
+        # set changes.
         height=480,
+        bargap=bargap,
         annotations=annotations,
         showlegend=False,
         # Top margin holds the topmost panel's label.
