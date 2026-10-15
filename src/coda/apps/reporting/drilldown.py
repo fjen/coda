@@ -57,7 +57,7 @@ def facet_param_names(dimension_id: str) -> tuple[str, ...]:
     """The shared-form GET params reproducing a dimension's chart set (§2 #7).
 
     The ``contract`` facet only reproduces a row with both params; a dimension
-    without a facet yields ``()`` — the completeness test in tests/statistics
+    without a facet yields ``()`` — the completeness test in tests/reporting
     pins that no dimension ever reaches that case.
     """
     if dimension_id == "contract":

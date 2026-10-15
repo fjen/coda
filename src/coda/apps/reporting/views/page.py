@@ -1,8 +1,8 @@
 """The statistics page and its HTMX list region (plan §3, §4, §8.5, §9).
 
-``statistics_page`` answers, for the filtered set of funding requests: headline
+``reporting_page`` answers, for the filtered set of funding requests: headline
 row, then one section per §7 dimension with a plotly figure (json_script +
-``statistics.js``), a table of exact values and drill-down links back into the
+``reporting.js``), a table of exact values and drill-down links back into the
 funding request list. The filter rail, chips and region mechanics are the
 funding request list's own — reused through ``partials/filter_layout.html``.
 """
@@ -31,10 +31,10 @@ from coda.apps.institutions.models import Institution
 from coda.apps.invoices.models import Invoice
 from coda.apps.listfilters import ListRegionMixin, build_filter_summary, build_url
 from coda.apps.preferences.models import GlobalPreferences
-from coda.apps.statistics import queries
-from coda.apps.statistics.dataset import build_facts
-from coda.apps.statistics.drilldown import DrilldownLinks, list_view_url
-from coda.apps.statistics.treemap import institution_treemap
+from coda.apps.reporting import queries
+from coda.apps.reporting.dataset import build_facts
+from coda.apps.reporting.drilldown import DrilldownLinks, list_view_url
+from coda.apps.reporting.treemap import institution_treemap
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import (
@@ -45,9 +45,9 @@ from coda.contexts.statistics.dto import (
     StatisticsReport,
 )
 
-_PAGE_URL = "statistics:page"
-_REGION_URL = "statistics:region"
-_REGION_ELEMENT_ID = "statistics-region"
+_PAGE_URL = "reporting:stats_fundingrequests"
+_REGION_URL = "reporting:stats_fundingrequests_region"
+_REGION_ELEMENT_ID = "reporting-region"
 
 # A plotly horizontal bar band needs roughly this much vertical space; the
 # table under the chart carries the exact values regardless.
@@ -90,7 +90,7 @@ class IncompleteInvoice:
 
 @dataclass(frozen=True)
 class ChartPanel:
-    """One dimension's figure for ``statistics.js``: one dot per entity,
+    """One dimension's figure for ``reporting.js``: one dot per entity,
     publications on x, spend on y."""
 
     data_id: str
@@ -111,31 +111,31 @@ class DimensionSection:
 
 
 @login_required
-@breadcrumb("Statistics", parent_url_name="exports:export_home")
-def statistics_page(request: HttpRequest) -> HttpResponse:
+@breadcrumb("Funding Request Statistics", parent_url_name="reporting:home")
+def reporting_page(request: HttpRequest) -> HttpResponse:
     """The page itself; a bare GET first gets the default period in its URL
     (§8.5), so the effective period is visible everywhere, drill-downs included."""
     if not request.GET.get("start_date") and not request.GET.get("end_date"):
         return redirect(_default_period_url(request))
-    return render(request, "statistics/statistics.html", statistics_context(request))
+    return render(request, "reporting/reporting.html", reporting_context(request))
 
 
-class StatisticsRegionView(ListRegionMixin, TemplateView):
+class ReportingRegionView(ListRegionMixin, TemplateView):
     """The filter-driven region: sections re-render on every sidebar change,
     and the sidebar itself swaps back out of band so its widgets keep the
     server-owned state (same mechanics as the funding request list)."""
 
-    template_name = "statistics/partials/statistics_region.html"
+    template_name = "reporting/partials/reporting_region.html"
     list_url_name = _PAGE_URL
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        return super().get_context_data(**kwargs) | statistics_context(self.request)
+        return super().get_context_data(**kwargs) | reporting_context(self.request)
 
 
-statistics_region = StatisticsRegionView.as_view()
+reporting_region = ReportingRegionView.as_view()
 
 
-def statistics_context(request: HttpRequest) -> dict[str, Any]:
+def reporting_context(request: HttpRequest) -> dict[str, Any]:
     """The whole page context: filtered facts -> report -> sections, plus the
     shared rail's form/chips state."""
     labels = list(Label.objects.all().order_by("name"))
@@ -159,6 +159,8 @@ def statistics_context(request: HttpRequest) -> dict[str, Any]:
         contracts,
         list_url_name=_PAGE_URL,
         region_url_name=_REGION_URL,
+        included=filter_form.selected_label_ids,
+        excluded=filter_form.excluded_label_ids,
         date_range=filter_form.cleaned_data.get("date_range"),
         date_range_error=str(date_errors[0]) if date_errors else None,
     )

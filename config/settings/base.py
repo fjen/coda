@@ -123,7 +123,7 @@ LOCAL_APPS = [
     "coda.apps.breadcrumbs",
     "coda.apps.opencost",
     "coda.apps.exports",
-    "coda.apps.statistics",
+    "coda.apps.reporting",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

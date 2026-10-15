@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+    <h1 class="my-2">Funding Request Statistics</h1>
+    <p class="statistics-intro">
+        Period basis: the request date (ADR-0005).
+        Every table row that can be expressed as list filters links to the funding request list showing exactly that set.
+    </p>
+    {% url 'reporting:stats_fundingrequests_region' as region_url %}
+    {% url 'reporting:stats_fundingrequests' as reporting_url %}
+    {% include "partials/filter_layout.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url=region_url filter_list_id="reporting-region" filter_clear_url=reporting_url %}
+    <script src="{% static 'js/vendor/plotly.min.js' %}"
+            defer
+            crossorigin="anonymous"></script>
+    <script src="{% static 'js/reporting.js' %}" defer crossorigin="anonymous"></script>
+{% endblock content %}

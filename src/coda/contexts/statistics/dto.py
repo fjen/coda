@@ -31,7 +31,7 @@ class RequestFact:
     """One funding request — the grain of the whole statistics view (plan §5).
 
     Money fields hold gross amounts already converted to the report currency;
-    ``apps/statistics/dataset.py`` fills them (ADR-0001, ADR-0003).
+    ``apps/reporting/dataset.py`` fills them (ADR-0001, ADR-0003).
     """
 
     request_id: int
