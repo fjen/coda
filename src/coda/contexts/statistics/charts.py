@@ -175,26 +175,39 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
     rows = len(grouping.rows)
     panel_px = 1100  # typical plot width; bargap only needs to be close
     bargap = max(0.3, 1.0 - MAX_BAR_PX / (panel_px / max(rows, 1)))
+    # The plot area — not the figure — is the fixed quantity: the rotated
+    # label band gets its own margin sized from the longest label, so
+    # tick-label length changes figure height but never squeezes the chart.
+    PLOT_HEIGHT = 330  # px of combined bar panels
+    TOP_MARGIN = 22  # px, holds the topmost panel's label
+    label_band = _label_band_px([row.label for row in grouping.rows])
     figure.update_layout(
         **axes,
         xaxis={
-            "automargin": True,
+            "automargin": False,
             "tickangle": -45,
             "type": "category",
             "domain": [0.0, 1.0],
         },
-        # One fixed height for every figure: the rotated label band must not
-        # change the figure's footprint (and the page flow) when the label
-        # set changes.
-        height=480,
+        height=PLOT_HEIGHT + label_band + TOP_MARGIN,
         bargap=bargap,
         annotations=annotations,
         showlegend=False,
-        # Top margin holds the topmost panel's label.
-        margin={"l": 10, "r": 10, "t": 22, "b": 10},
+        margin={"l": 10, "r": 10, "t": TOP_MARGIN, "b": label_band},
     )
     json: dict[str, Any] = figure.to_plotly_json()
     return json
+
+
+def _label_band_px(labels: Sequence[str]) -> int:
+    """Bottom margin for the -45° tick labels, from the longest one.
+
+    At -45° a label of L px rendered width needs about L·sin(45°) ≈ 0.7·L of
+    vertical band. 7px per character is close enough for system-ui 12px; the
+    14px base covers the axis line and tick marks.
+    """
+    longest = max((len(label) for label in labels), default=0)
+    return 14 + int(longest * 7 * 0.7)
 
 
 def _pies_figure(grouping: Grouping) -> dict[str, Any]:
