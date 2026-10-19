@@ -154,5 +154,5 @@ def subtree_pks_of_all(
 def _title() -> str:
     return (
         "Institution hierarchy — publications (area), spend incl. tax (colour).<br>"
-        "A request counts in full under every affiliation (ADR-0007): subtrees can overlap."
+        "A request counts in full under every affiliation: subtrees can overlap."
     )
