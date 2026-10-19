@@ -41,7 +41,7 @@
     <article class="statistics-headline-card">
         <h4>Requests with excluded amounts</h4>
         <p class="statistics-headline-value">{{ headline.requests_unconvertible }}</p>
-        <small>no rate in the report currency (ADR-0003)</small>
+        <small>no rate in the report currency</small>
     </article>
 </div>
 {% if incomplete_invoices %}
@@ -49,7 +49,7 @@
         {{ headline.requests_unconvertible }}
         {{ headline.requests_unconvertible|pluralize:"request,requests" }}
         with excluded amounts — no conversion rate in the report currency
-        (ADR-0003), the amounts are not in spend:
+        , the amounts are not in spend:
         {% for invoice in incomplete_invoices %}
             <a href="{% url 'invoices:detail' invoice.pk %}">{{ invoice.number }}</a>{% if not forloop.last %},{% endif %}
         {% endfor %}
@@ -57,7 +57,10 @@
 {% endif %}
 {% if institution_treemap %}
     <article class="statistics-section" id="statistics-institution-hierarchy">
-        <h3>Institution hierarchy</h3>
+    <header>
+        <h3 class="my-0">Institution hierarchy</h3>
+    </header>
+
         {{ institution_treemap|json_script:"chart-institution-treemap" }}
         <div class="statistics-chart statistics-treemap"
              data-chart="chart-institution-treemap"
@@ -67,7 +70,9 @@
 {% endif %}
 {% for section in sections %}
     <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
-        <h3>{{ section.label }}</h3>
+        <header>
+        <h3 class="my-0">{{ section.label }}</h3>
+        </header>
         {{ section.chart.figure|json_script:section.chart.data_id }}
         <div class="statistics-chart"
              data-chart="{{ section.chart.data_id }}"
