@@ -178,8 +178,10 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
     # The plot area — not the figure — is the fixed quantity: the rotated
     # label band gets its own margin sized from the longest label, so
     # tick-label length changes figure height but never squeezes the chart.
-    PLOT_HEIGHT = 330  # px of combined bar panels
+    # Single-measure figures render one panel, so they get half the plot.
+    PLOT_HEIGHT = 330  # px of combined bar panels (two-measure figures)
     TOP_MARGIN = 22  # px, holds the topmost panel's label
+    plot = PLOT_HEIGHT if len(measures) > 1 else PLOT_HEIGHT // 2
     label_band = _label_band_px([row.label for row in grouping.rows])
     figure.update_layout(
         **axes,
@@ -189,7 +191,7 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
             "type": "category",
             "domain": [0.0, 1.0],
         },
-        height=PLOT_HEIGHT + label_band + TOP_MARGIN,
+        height=plot + label_band + TOP_MARGIN,
         bargap=bargap,
         annotations=annotations,
         showlegend=False,
