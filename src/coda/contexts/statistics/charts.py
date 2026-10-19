@@ -47,72 +47,13 @@ NON_ADDITIVE_NOTE = (
 )
 
 
-def build_figure(grouping: Grouping, kind: ChartKind = ChartKind.SCATTER) -> dict[str, Any]:
-    """Dispatch to the encoding the page asked for (evaluation demo: the same
-    groupings, three encodings — scatter, bars, pies)."""
+def build_figure(grouping: Grouping, kind: ChartKind = ChartKind.BARS) -> dict[str, Any]:
+    """Dispatch to the encoding the page asked for."""
     builders: dict[ChartKind, Callable[[Grouping], dict[str, Any]]] = {
-        ChartKind.SCATTER: _scatter_figure,
         ChartKind.BARS: _bars_figure,
         ChartKind.PIES: _pies_figure,
     }
     return builders[kind](grouping)
-
-
-def _scatter_figure(grouping: Grouping) -> dict[str, Any]:
-    """Scatter: one dot per entity, publications on x, spend on y — both
-    dimensions in one plot, the entity named beside its dot. The measures
-    keep separate axes with their own scales; nothing here implies the values
-    sum to a whole, so ADR-0007 groupings stay honest."""
-    measures = grouping.measures
-    spend = next((m for m in measures if m is not Measure.PUBLICATIONS), None)
-    labels = [row.label for row in grouping.rows]
-    if spend is None:
-        # Single-measure dimension: dot per entity on one value axis.
-        measure = measures[0]
-        return {
-            "data": [
-                {
-                    "type": "scatter",
-                    "mode": "markers+text",
-                    "x": [_row_value(row, measure) for row in grouping.rows],
-                    "y": list(range(len(grouping.rows))),
-                    "text": labels,
-                    "textposition": "middle right",
-                    "marker": {"color": MEASURE_COLORS[measure], "size": 11},
-                    "hovertemplate": "%{text}: %{x:,}<extra></extra>",
-                }
-            ],
-            "layout": {
-                "xaxis": {"title": {"text": MEASURE_LABELS[measure]}},
-                "yaxis": {"visible": False, "autorange": "reversed"},
-                "showlegend": False,
-                "margin": {"l": 10, "r": 120, "t": 10, "b": 40},
-            },
-            "config": {"responsive": True},
-        }
-    publications = Measure.PUBLICATIONS
-    return {
-        "data": [
-            {
-                "type": "scatter",
-                "mode": "markers+text",
-                "x": [_row_value(row, publications) for row in grouping.rows],
-                "y": [float(_row_value(row, spend)) for row in grouping.rows],
-                "text": labels,
-                "textposition": "middle right",
-                "marker": {"color": MEASURE_COLORS[spend], "size": 11},
-                "customdata": labels,
-                "hovertemplate": ("%{customdata}: %{x:,} publications, %{y:,.2f} €<extra></extra>"),
-            }
-        ],
-        "layout": {
-            "xaxis": {"title": {"text": MEASURE_LABELS[publications]}},
-            "yaxis": {"title": {"text": MEASURE_LABELS[spend]}, "automargin": True},
-            "showlegend": False,
-            "margin": {"l": 10, "r": 10, "t": 10, "b": 40},
-        },
-        "config": {"responsive": True},
-    }
 
 
 def _bars_figure(grouping: Grouping) -> dict[str, Any]:
@@ -261,6 +202,9 @@ def _pies_figure(grouping: Grouping) -> dict[str, Any]:
     return {
         "data": traces,
         "layout": {
+            # Fixed: every pie figure renders at the same height regardless
+            # of how many slices the legend stacks.
+            "height": 420,
             "showlegend": True,
             "legend": {
                 # Labels stacked along the LEFT edge, one per entity.
@@ -300,10 +244,10 @@ def report(
     dimensions: Sequence[Dimension],
     *,
     top_n: int = DEFAULT_TOP_N,
-    kind: ChartKind = ChartKind.SCATTER,
+    kind: ChartKind = ChartKind.BARS,
 ) -> StatisticsReport:
     """Headline plus one figure per dimension; dimensions without data omit
-    their section entirely. ``kind`` selects the encoding (evaluation demo)."""
+    their section entirely. ``kind`` selects the encoding."""
     charts: list[ChartSpec] = []
     for dimension in dimensions:
         grouping = group_by(facts, dimension, top_n=top_n)

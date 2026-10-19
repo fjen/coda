@@ -23,22 +23,23 @@ def _charts_by_id(the_report: StatisticsReport) -> dict[str, object]:
     return {c.dimension_id: c for c in the_report.charts}
 
 
-def test__report__builds_one_scatter_with_both_measures() -> None:
+def test__report__builds_bars_with_both_measures() -> None:
     grouping = group_by(PUBLISHER_FACTS, dimensions.by_id("publisher"))
 
     figure = build_figure(grouping)
 
-    assert [trace["type"] for trace in figure["data"]] == ["scatter"]
-    # One dot per entity, in the table's row order, named beside the dot.
-    trace = figure["data"][0]
-    assert [float(v) for v in trace["x"]] == [2.0, 1.0]
-    assert [float(v) for v in trace["y"]] == [150.0, 20.0]
-    assert list(trace["text"]) == ["Elsevier", "Springer"]
-    assert trace["mode"] == "markers+text"
-    # Separate axes, one per measure, titled.
+    assert [trace["type"] for trace in figure["data"]] == ["bar", "bar"]
+    # One panel per measure over the shared category axis, in table row order.
+    publications, spend = figure["data"]
+    assert [row.label for row in grouping.rows] == ["Elsevier", "Springer"]
+    assert [float(v) for v in publications["y"]] == [2.0, 1.0]
+    assert [float(v) for v in spend["y"]] == [150.0, 20.0]
+    # Separate value axes, one per measure, titled by panel annotation.
     layout = figure["layout"]
-    assert layout["xaxis"]["title"]["text"] == MEASURE_LABELS[Measure.PUBLICATIONS]
-    assert layout["yaxis"]["title"]["text"] == MEASURE_LABELS[Measure.PAID_OUT]
+    assert [a["text"] for a in layout["annotations"]] == [
+        MEASURE_LABELS[Measure.PUBLICATIONS],
+        MEASURE_LABELS[Measure.PAID_OUT],
+    ]
     assert not layout["showlegend"]
 
 
@@ -64,10 +65,10 @@ def test__report__single_measure_dimensions_get_a_single_full_width_panel() -> N
 
     assert [c.measure for c in by_id["cost_type"].columns] == [Measure.PAID_OUT]  # type: ignore[attr-defined]
     assert len(by_id["cost_type"].figure["data"]) == 1  # type: ignore[attr-defined]
-    assert "xaxis2" not in by_id["cost_type"].figure["layout"]  # type: ignore[attr-defined]
+    assert "yaxis2" not in by_id["cost_type"].figure["layout"]  # type: ignore[attr-defined]
     assert [c.measure for c in by_id["funder"].columns] == [Measure.PUBLICATIONS]  # type: ignore[attr-defined]
     assert all(
-        trace["type"] == "scatter"
+        trace["type"] == "bar"
         for chart in by_id.values()
         for trace in chart.figure["data"]  # type: ignore[attr-defined]
     )

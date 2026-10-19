@@ -49,11 +49,6 @@ _PAGE_URL = "reporting:stats_fundingrequests"
 _REGION_URL = "reporting:stats_fundingrequests_region"
 _REGION_ELEMENT_ID = "reporting-region"
 
-# A plotly horizontal bar band needs roughly this much vertical space; the
-# table under the chart carries the exact values regardless.
-_CHART_ROW_PX = 28
-_CHART_BASE_PX = 60
-
 
 @dataclass(frozen=True)
 class DimensionRow:
@@ -147,9 +142,9 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     criteria, _sort_order = filter_form.search_criteria()
     facts = build_facts(queries.fetch_requests(criteria), GlobalPreferences.get_home_currency())
     try:
-        kind = ChartKind(request.GET.get("chart", ChartKind.SCATTER))
+        kind = ChartKind(request.GET.get("chart", ChartKind.BARS))
     except ValueError:
-        kind = ChartKind.SCATTER
+        kind = ChartKind.BARS
     report = charts.report(facts, DIMENSIONS, kind=kind)
 
     date_errors = filter_form.errors.get("date_range")
@@ -252,23 +247,8 @@ def _panel(spec: ChartSpec) -> ChartPanel:
     return ChartPanel(
         data_id=f"chart-{spec.dimension_id}",
         title=spec.title,
-        figure=_figure_with_height(spec),
+        figure=spec.figure,
     )
-
-
-def _figure_with_height(spec: ChartSpec) -> dict[str, Any]:
-    """Size figures that don't carry their own height (scatter, pies): one
-    bar band per row — the container has no intrinsic height, and Plotly
-    honors an explicit layout height. The bars figure sets a fixed height
-    itself, so its layout wins here."""
-    figure = spec.figure
-    if figure.get("layout", {}).get("height") is not None:
-        return figure
-    layout = {
-        **figure.get("layout", {}),
-        "height": _CHART_BASE_PX + _CHART_ROW_PX * len(spec.rows),
-    }
-    return {**figure, "layout": layout}
 
 
 def _incomplete_invoices(facts: Sequence[RequestFact]) -> tuple[IncompleteInvoice, ...]:

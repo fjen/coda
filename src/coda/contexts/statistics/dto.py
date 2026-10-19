@@ -71,11 +71,9 @@ class Measure(StrEnum):
 
 
 class ChartKind(StrEnum):
-    """Which figure the page renders per dimension (evaluation demo: the
-    same groupings, three encodings, switchable per URL)."""
+    """Which figure the page renders per dimension (switchable per URL)."""
 
-    SCATTER = "scatter"  # x = publications, y = spend, one dot per entity
-    BARS = "bars"  # one horizontal bar panel per measure, labels on the left
+    BARS = "bars"  # vertical columns, one panel per measure, names on the x axis
     PIES = "pies"  # pie pair, labels left of the plots
 
 
