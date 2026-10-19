@@ -317,7 +317,7 @@ def test__reporting_page__non_additive_dimension__shows_note_instead_of_total(
     value_column = column(sections_by_id(response)["institution"], Measure.PUBLICATIONS)
     assert value_column.total is None
     assert value_column.note is not None
-    assert "ADR-0007" in value_column.note
+    assert "double-counted" in value_column.note
 
 
 @pytest.mark.django_db
@@ -586,7 +586,7 @@ def test__reporting_page__every_dimension__section_measures_and_facet_round_out_
 ) -> None:
     """§7 completeness: every registry dimension gets its section with one
     combined figure and table columns for every supported measure — the total
-    for additive measures and the ADR-0007 note otherwise — and every
+    for additive measures and the double-counting note otherwise — and every
     dimension has a facet whose params the shared form actually accepts (§2 #7)."""
     seed()
     form_fields = set(FundingRequestListFilterForm().fields)

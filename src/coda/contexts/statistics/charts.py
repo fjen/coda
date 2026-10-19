@@ -43,7 +43,7 @@ MEASURE_COLORS: dict[Measure, str] = {
 
 NON_ADDITIVE_NOTE = (
     "Totals for this column count each request once, so entities sharing a "
-    "request are double-counted — sum the rows for a grand total (ADR-0007)."
+    "request are double-counted — sum the rows for a grand total."
 )
 
 
