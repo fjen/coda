@@ -93,7 +93,7 @@
                      role="img"
                      aria-label="{{ section.chart.title }}"></div>
                 <details class="statistics-exact">
-                    <summary>Exact values ({{ section.rows|length }} rows)</summary>
+                    <summary role="button" class="outline contrast">Exact values ({{ section.rows|length }} rows)</summary>
                     <table class="statistics-values">
                         <caption class="statistics-caption">Exact values</caption>
                         <thead>
@@ -123,6 +123,9 @@
                                         <td class="statistics-num">
                                             {% if column.measure == "publications" %}
                                                 {{ row.publications }}
+                                                {% if column.total %}
+                                                    <span class="statistics-share" data-share="{% widthratio row.publications column.total 1000 %}"></span>
+                                                {% endif %}
                                             {% elif row.amount %}
                                                 <span title="{{ row.amount|floatformat:2 }} €">{{ row.amount|floatformat:"0g" }} €</span>
                                                 {% if column.total %}
