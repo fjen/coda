@@ -17,6 +17,10 @@ const renderChart = (element) => {
 
 const renderCharts = (root) => {
     root.querySelectorAll("[data-chart]").forEach(renderChart);
+    // Share bars: the template carries the permille share as data; CSS paints it.
+    root.querySelectorAll(".statistics-share[data-share]").forEach((bar) => {
+        bar.style.setProperty("--share", bar.dataset.share);
+    });
 };
 
 if (document.readyState === "loading") {

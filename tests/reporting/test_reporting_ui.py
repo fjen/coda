@@ -74,6 +74,8 @@ def test__reporting_page__row_link__filters_the_page_in_place(
     _goto_statistics(coda_page, live_server)
     _wait_for_charts(coda_page)
 
+    # The exact-value table lives in a collapsed <details>; open it first.
+    coda_page.locator("#statistics-journal details.statistics-exact summary").click()
     row_link = coda_page.locator(
         "#statistics-journal table.statistics-values th a",
     ).filter(has_text=fixture.journal.title)
@@ -83,7 +85,10 @@ def test__reporting_page__row_link__filters_the_page_in_place(
     expect(coda_page.locator("#reporting-region")).to_contain_text("Publications funded")
     expect(coda_page.locator(".statistics-headline-value").first).to_have_text("1")
 
-    # Toggle off: the row link now carries the filter-removing URL.
+    # Toggle off: the row link now carries the filter-removing URL. The swap
+    # re-renders the region with the details collapsed again — reopen first.
+    coda_page.wait_for_url(lambda url: "journal=" in url)
+    coda_page.locator("#statistics-journal details.statistics-exact summary").click()
     row_link.click()
     coda_page.wait_for_url(lambda url: "journal=" not in url)
     expect(coda_page.locator(".statistics-headline-value").first).to_have_text("3")
@@ -222,6 +227,8 @@ def test__statistics_table__column_header__sorts_the_rows(
 
     _goto_statistics(coda_page, live_server)
 
+    # The exact-value table lives in a collapsed <details>; open it first.
+    coda_page.locator("#statistics-publisher details.statistics-exact summary").click()
     table = coda_page.locator("#statistics-publisher table.statistics-values")
     first_row = table.locator("tbody tr th").first
     count_header = table.locator("thead th", has_text="publications")

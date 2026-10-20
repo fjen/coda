@@ -96,13 +96,18 @@ class ChartPanel:
 @dataclass(frozen=True)
 class DimensionSection:
     """One section of the page: a dimension, its combined figure and one
-    count-plus-spend table for the whole facet."""
+    count-plus-spend table for the whole facet. ``value_count`` is the number
+    of distinct values the facet produced (the "Other" fold counts once);
+    ``unattributed`` the requests the facet could not express as a value —
+    the data-quality signal in the section header."""
 
     dimension_id: str
     label: str
     chart: ChartPanel
     rows: tuple[DimensionRow, ...]
     columns: tuple[MeasureColumn, ...]
+    value_count: int
+    unattributed: int = 0
 
 
 @login_required
@@ -160,6 +165,16 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         date_range_error=str(date_errors[0]) if date_errors else None,
     )
 
+    all_sections = _sections(
+        report,
+        DrilldownLinks.build(request, region_url_name=_REGION_URL, vocabularies=vocabularies),
+    )
+    treemap = institution_treemap(facts, Institution.objects.all())
+    by_id = {section.dimension_id: section for section in all_sections}
+
+    def group_sections(group: DimensionGroup) -> list[DimensionSection]:
+        return [by_id[section_id] for section_id in group.section_ids if section_id in by_id]
+
     return {
         "filter_form": filter_form,
         "labels": labels,
@@ -178,11 +193,16 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         },
         "headline": report.headline,
         "incomplete_invoices": _incomplete_invoices(facts),
-        "sections": _sections(
-            report,
-            DrilldownLinks.build(request, region_url_name=_REGION_URL, vocabularies=vocabularies),
-        ),
-        "institution_treemap": institution_treemap(facts, Institution.objects.all()),
+        "groups": [
+            {
+                "group": group,
+                "treemap": treemap if group.has_treemap else None,
+                "sections": group_sections(group),
+            }
+            for group in DIMENSION_GROUPS
+            if group_sections(group) or (group.has_treemap and treemap)
+        ],
+        "sections": all_sections,
     }
 
 
@@ -238,6 +258,12 @@ def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[Dimension
                     )
                     for column in spec.columns
                 ),
+                value_count=len(spec.rows),
+                unattributed=sum(
+                    row.publications
+                    for row in spec.rows
+                    if row.label in _UNATTRIBUTED_LABELS.get(dimension.id, ())
+                ),
             )
         )
     return sections
@@ -249,6 +275,52 @@ def _panel(spec: ChartSpec) -> ChartPanel:
         title=spec.title,
         figure=spec.figure,
     )
+
+
+#: The sentinel row labels marking requests a facet cannot attribute.
+_UNATTRIBUTED_LABELS: dict[str, tuple[str, ...]] = {
+    "institution": ("Unknown",),
+    "subject_area": ("Unknown",),
+    "publication_type": ("Unknown",),
+    "publication_form": ("unknown",),
+    "license": ("Unknown",),
+    "open_access_type": ("Unknown",),
+    "journal": ("Unknown",),
+    "publisher": ("Unknown",),
+}
+
+
+@dataclass(frozen=True)
+class DimensionGroup:
+    """A coherent view over the dimension sections: one chip in the jump nav,
+    one band in the page grid. The group is a navigation/layout unit only —
+    the sections render unchanged inside it."""
+
+    id: str
+    label: str
+    section_ids: tuple[str, ...]
+    has_treemap: bool = False
+
+
+DIMENSION_GROUPS: tuple[DimensionGroup, ...] = (
+    DimensionGroup(
+        id="publication",
+        label="Publication",
+        section_ids=("subject_area", "publication_type", "publication_form", "license", "open_access_type"),
+    ),
+    DimensionGroup(id="venues", label="Venues", section_ids=("journal", "publisher")),
+    DimensionGroup(
+        id="cost",
+        label="Cost & contracts",
+        section_ids=("cost_type", "contract", "funding_source"),
+    ),
+    DimensionGroup(
+        id="attribution",
+        label="Attribution",
+        section_ids=("institution", "funder"),
+        has_treemap=True,
+    ),
+)
 
 
 def _incomplete_invoices(facts: Sequence[RequestFact]) -> tuple[IncompleteInvoice, ...]:

@@ -11,6 +11,11 @@
     The one link into the funding-request list sits by the headline and
     carries the page's whole filter set.
 {% endcomment %}
+<nav class="statistics-groups" aria-label="Dimension groups">
+    {% for entry in groups %}
+        <a href="#group-{{ entry.group.id }}" class="statistics-group-chip">{{ entry.group.label }}</a>
+    {% endfor %}
+</nav>
 <p class="statistics-intro">
     <a href="{{ list_view_url }}"
        title="Show these funding requests in the list, with the active filters">Show the
@@ -55,86 +60,103 @@
         {% endfor %}
     </div>
 {% endif %}
-{% if institution_treemap %}
-    <article class="statistics-section" id="statistics-institution-hierarchy">
-    <header>
-        <h3 class="my-0">Institution hierarchy</h3>
-    </header>
-
-        {{ institution_treemap|json_script:"chart-institution-treemap" }}
-        <div class="statistics-chart statistics-treemap"
-             data-chart="chart-institution-treemap"
-             role="img"
-             aria-label="Institution hierarchy treemap: publications as area, spend as colour"></div>
-    </article>
-{% endif %}
-{% for section in sections %}
-    <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
-        <header>
-        <h3 class="my-0">{{ section.label }}</h3>
-        </header>
-        {{ section.chart.figure|json_script:section.chart.data_id }}
-        <div class="statistics-chart"
-             data-chart="{{ section.chart.data_id }}"
-             role="img"
-             aria-label="{{ section.chart.title }}"></div>
-        <table class="statistics-values">
-            <caption class="statistics-caption">Exact values</caption>
-            <thead>
-                <tr>
-                    <th scope="col">{{ section.label }}</th>
-                    {% for column in section.columns %}
-                        <th scope="col">{{ column.label }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in section.rows %}
-                    <tr {% if row.is_other %}class="statistics-aggregate"{% endif %}>
-                        <th scope="row">
-                            {% if row.link %}
-                                <a href="{{ row.link }}"
-                                   hx-get="{{ row.link }}"
-                                   hx-include="none"
-                                   hx-target="#reporting-region"
-                                   hx-push-url="true"
-                                   title="Filter these statistics to {{ row.label }}">{{ row.label }}</a>
-                            {% else %}
-                                {{ row.label }}
+{% for entry in groups %}
+    <section class="statistics-group" id="group-{{ entry.group.id }}">
+        <h2 class="statistics-group-title">{{ entry.group.label }}</h2>
+        {% if entry.treemap %}
+            <article class="statistics-section" id="statistics-institution-hierarchy">
+                <header>
+                    <h3 class="my-0">Institution hierarchy</h3>
+                </header>
+                {{ entry.treemap|json_script:"chart-institution-treemap" }}
+                <div class="statistics-chart statistics-treemap"
+                     data-chart="chart-institution-treemap"
+                     role="img"
+                     aria-label="Institution hierarchy treemap: publications as area, spend as colour"></div>
+            </article>
+        {% endif %}
+        {% for section in entry.sections %}
+            <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
+                <header>
+                    <h3 class="my-0">{{ section.label }}
+                        <small class="statistics-section-meta">
+                            {{ section.value_count }} value{{ section.value_count|pluralize }}
+                            {% if section.unattributed %}
+                                · {{ section.unattributed }} unattributed
                             {% endif %}
-                        </th>
-                        {% for column in section.columns %}
-                            <td>
-                                {% if column.measure == "publications" %}
-                                    {{ row.publications }}
-                                {% elif row.amount %}
-                                    {{ row.amount|floatformat:2 }} €
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <th scope="row">Total</th>
-                    {% for column in section.columns %}
-                        <td>
-                            {% if column.note %}
-                                <em class="statistics-note">{{ column.note }}</em>
-                            {% elif column.measure == "publications" %}
-                                {{ column.total }} publications
-                            {% else %}
-                                {{ column.total|floatformat:2 }} €
-                            {% endif %}
-                        </td>
-                    {% endfor %}
-                </tr>
-            </tfoot>
-        </table>
-    </article>
+                        </small>
+                    </h3>
+                </header>
+                {{ section.chart.figure|json_script:section.chart.data_id }}
+                <div class="statistics-chart"
+                     data-chart="{{ section.chart.data_id }}"
+                     role="img"
+                     aria-label="{{ section.chart.title }}"></div>
+                <details class="statistics-exact">
+                    <summary>Exact values ({{ section.rows|length }} rows)</summary>
+                    <table class="statistics-values">
+                        <caption class="statistics-caption">Exact values</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ section.label }}</th>
+                                {% for column in section.columns %}
+                                    <th scope="col" class="statistics-num">{{ column.label }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in section.rows %}
+                                <tr {% if row.is_other %}class="statistics-aggregate"{% endif %}>
+                                    <th scope="row">
+                                        {% if row.link %}
+                                            <a href="{{ row.link }}"
+                                               hx-get="{{ row.link }}"
+                                               hx-include="none"
+                                               hx-target="#reporting-region"
+                                               hx-push-url="true"
+                                               title="Filter these statistics to {{ row.label }}">{{ row.label }}</a>
+                                        {% else %}
+                                            {{ row.label }}
+                                        {% endif %}
+                                    </th>
+                                    {% for column in section.columns %}
+                                        <td class="statistics-num">
+                                            {% if column.measure == "publications" %}
+                                                {{ row.publications }}
+                                            {% elif row.amount %}
+                                                <span title="{{ row.amount|floatformat:2 }} €">{{ row.amount|floatformat:"0g" }} €</span>
+                                                {% if column.total %}
+                                                    <span class="statistics-share" data-share="{% widthratio row.amount column.total 1000 %}"></span>
+                                                {% endif %}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th scope="row">Total</th>
+                                {% for column in section.columns %}
+                                    <td class="statistics-num">
+                                        {% if column.note %}
+                                            <em class="statistics-note">{{ column.note }}</em>
+                                        {% elif column.measure == "publications" %}
+                                            {{ column.total }} publications
+                                        {% else %}
+                                            {{ column.total|floatformat:2 }} €
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </details>
+            </article>
+        {% endfor %}
+    </section>
 {% empty %}
     <p class="my-2">No funding requests match the selected filters.</p>
 {% endfor %}

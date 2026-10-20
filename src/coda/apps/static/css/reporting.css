@@ -82,3 +82,75 @@ headline cards above them; this class only keeps the anchor id addressable. */
 .statistics-note {
     opacity: 0.8;
 }
+
+/* Group bands and jump-nav chips (prototype: grouped sections). */
+.statistics-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 0.5rem 0;
+    background: var(--coda-background-color, var(--pico-background-color, #fff));
+    margin-bottom: 1rem;
+}
+
+.statistics-group-chip {
+    padding: 0.25rem 0.9rem;
+    border: 1px solid var(--coda-border-color, #ccc);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    text-decoration: none;
+}
+
+.statistics-group-chip:hover {
+    background: var(--coda-primary-background, #eef);
+}
+
+.statistics-group {
+    margin-bottom: 2rem;
+}
+
+.statistics-group-title {
+    font-size: 1.15rem;
+    margin: 0 0 0.75rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--coda-border-color, #ddd);
+}
+
+.statistics-section-meta {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--coda-muted-color, #667);
+}
+
+/* Exact values live in a collapsed <details>; right-aligned numerics and a
+   CSS share bar per row keep the collapsed summary + open table scannable. */
+.statistics-exact summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--coda-primary, var(--pico-primary, #0172ad));
+    margin: 0.25rem 0 0.5rem;
+}
+
+.statistics-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.statistics-values th:first-child,
+.statistics-values td:first-child {
+    text-align: left;
+}
+
+.statistics-share {
+    display: block;
+    height: 3px;
+    margin-top: 2px;
+    background: linear-gradient(
+        to right,
+        var(--coda-primary, #0072b2) calc(var(--share, 0) * 0.1%),
+        transparent calc(var(--share, 0) * 0.1%)
+    );
+}
