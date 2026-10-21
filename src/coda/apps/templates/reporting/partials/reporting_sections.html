@@ -98,6 +98,7 @@
                      aria-label="Institution hierarchy treemap: publications as area, spend as colour"></div>
             </article>
         {% endif %}
+        <div class="statistics-group-grid">
         {% for section in entry.sections %}
             <article class="statistics-section" id="statistics-{{ section.dimension_id }}">
                 <header>
@@ -198,6 +199,7 @@
                 </details>
             </article>
         {% endfor %}
+        </div>
     </section>
 {% empty %}
     <p class="my-2">No funding requests match the selected filters.</p>

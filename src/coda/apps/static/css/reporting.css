@@ -159,6 +159,36 @@ headline cards above them; this class only keeps the anchor id addressable. */
     margin-bottom: 2rem;
 }
 
+/* Two-column section grid (2.6): a group's sections pair up on wide
+   screens; the treemap and the timeline stay full-width above the grid. */
+@media screen and (width >= 1400px) {
+    .statistics-group-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    .statistics-group-grid .statistics-section {
+        margin-bottom: 0;
+        min-width: 0;
+    }
+
+    /* Full-width members inside the grid: treemap and timeline span both
+       columns. */
+    .statistics-group-grid .statistics-section:is(#statistics-institution-hierarchy, #statistics-timeline) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media screen and (width < 1400px) {
+    .statistics-group-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+}
+
 .statistics-group-title {
     font-size: 1.15rem;
     margin: 0 0 0.75rem;

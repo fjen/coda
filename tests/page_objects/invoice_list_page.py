@@ -25,27 +25,27 @@ class InvoiceListPage:
         self._list_region.wait_for()
 
     def open_filter_drawer(self) -> None:
-        """The filter rail is a drawer on every viewport now. Opening it makes
-        the page behind inert — drive the drawer widgets, then close it before
-        asserting on the list or the toolbar."""
+        """Bring the filter rail into an interactive state. The statistics
+        page renders it as a modal drawer on every viewport; list pages keep
+        the inline non-modal rail at desktop width — there the dialog is
+        already open and visible, so only the drawer case needs showModal."""
         self._page.evaluate(
-            "() => document.getElementById('filter-sidebar').showModal()"
+            "() => { const d = document.getElementById('filter-sidebar');"
+            " if (!d.open) { d.showModal(); } }"
         )
-        self._page.wait_for_function(
-            "() => document.getElementById('filter-sidebar').matches(':modal')"
-        )
+        # A facet list taller than the viewport scrolls the drawer; start at
+        # the top so the header widgets are in view.
         self._page.evaluate(
             "document.getElementById('filter-sidebar').scrollTo({top: 0})"
         )
 
     def close_filter_drawer(self) -> None:
+        # Modal-drawer pages only: the inline rail (list pages, desktop) is
+        # closed by collapsing its controls, not by closing the dialog.
         self._page.evaluate(
-            "() => document.getElementById('filter-sidebar').close()"
+            "() => { const d = document.getElementById('filter-sidebar');"
+            " if (d.matches(':modal')) { d.close(); } }"
         )
-        self._page.wait_for_function(
-            "() => !document.getElementById('filter-sidebar').matches(':modal')"
-        )
-
     # Filter actions (each triggers the live list update)
     def sort_by(self, value: str) -> None:
         self._page.select_option(filter_ui_selectors.FILTER_SORT, value)
