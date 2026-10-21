@@ -125,15 +125,6 @@ headline cards above them; this class only keeps the anchor id addressable. */
     color: var(--coda-muted-color, #667);
 }
 
-/* Exact values live in a collapsed <details>; right-aligned numerics and a
-   CSS share bar per row keep the collapsed summary + open table scannable. */
-.statistics-exact summary {
-    cursor: pointer;
-    font-size: 0.85rem;
-    color: var(--coda-primary, var(--pico-primary, #0172ad));
-    margin: 0.25rem 0 0.5rem;
-}
-
 .statistics-num {
     text-align: right;
     font-variant-numeric: tabular-nums;
