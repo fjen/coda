@@ -40,6 +40,7 @@ from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import (
     ChartKind,
     ChartSpec,
+    GroupRow,
     Measure,
     RequestFact,
     StatisticsReport,
@@ -66,6 +67,12 @@ class DimensionRow:
     is_other: bool = False
     comparison_publications: int | None = None
     comparison_amount: Decimal | None = None
+    #: Signed percentage change vs the comparison period, relative to the
+    #: comparison value (e.g. 25 means +25%). Spend-based when the row has
+    #: amounts on both sides, publications otherwise; None when the
+    #: comparison value is zero/absent (the row renders "new") or compare
+    #: is off.
+    delta_percent: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -249,6 +256,37 @@ def _default_period_url(request: HttpRequest) -> str:
     return build_url(_PAGE_URL, params)
 
 
+def _dimension_row(
+    row: GroupRow, comparison: GroupRow | None, link: str | None
+) -> DimensionRow:
+    """One table row, joined with its comparison-period counterpart.
+
+    The delta is spend-based when both sides carry an amount, publications
+    otherwise; it is signed relative to the comparison value and None when
+    there is nothing to compare against (no counterpart, or a zero base —
+    a row that did not exist last period renders "new", not a percentage).
+    """
+    comparison_publications = comparison.publications if comparison else 0
+    comparison_amount = comparison.amount if comparison else None
+    delta: Decimal | None = None
+    if row.amount is not None and comparison_amount:
+        delta = (row.amount - comparison_amount) / comparison_amount * 100
+    elif comparison_publications:
+        delta = (Decimal(row.publications) - comparison_publications) / Decimal(
+            comparison_publications
+        ) * 100
+    return DimensionRow(
+        label=row.label,
+        publications=row.publications,
+        amount=row.amount,
+        link=link,
+        is_other=row.is_other,
+        comparison_publications=comparison_publications,
+        comparison_amount=comparison_amount,
+        delta_percent=delta,
+    )
+
+
 def _sections(
     report: StatisticsReport,
     links: DrilldownLinks,
@@ -271,19 +309,7 @@ def _sections(
             else {}
         )
         rows = tuple(
-            DimensionRow(
-                label=row.label,
-                publications=row.publications,
-                amount=row.amount,
-                link=links.link(dimension.id, row),
-                is_other=row.is_other,
-                comparison_publications=comparison_rows[row.label].publications
-                if row.label in comparison_rows
-                else 0,
-                comparison_amount=comparison_rows[row.label].amount
-                if row.label in comparison_rows
-                else Decimal(0),
-            )
+            _dimension_row(row, comparison_rows.get(row.label), links.link(dimension.id, row))
             for row in spec.rows
         )
         sections.append(

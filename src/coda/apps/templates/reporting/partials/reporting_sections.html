@@ -1,4 +1,4 @@
-{% load getitem %}
+{% load getitem mathfilters %}
 {% comment %}
     Headline row + one section per dimension (plan §9): the measures' charts
     side by side over ONE exact-value table — count and spend per row, totals
@@ -137,18 +137,12 @@
                                     {% endfor %}
                                     {% if compare %}
                                         <td class="statistics-num">
-                                            {% if row.comparison_publications or row.comparison_amount %}
-                                                {% if row.amount is not None and row.comparison_amount %}
-                                                    <span class="{% if row.amount >= row.comparison_amount %}delta-up{% else %}delta-down{% endif %}">
-                                                        {% widthratio row.amount row.comparison_amount 100 %}%
-                                                    </span>
-                                                {% elif row.publications and row.comparison_publications %}
-                                                    <span class="{% if row.publications >= row.comparison_publications %}delta-up{% else %}delta-down{% endif %}">
-                                                        {% widthratio row.publications row.comparison_publications 100 %}%
-                                                    </span>
-                                                {% else %}
-                                                    new
-                                                {% endif %}
+                                            {% if row.delta_percent is not None %}
+                                                <span class="{% if row.delta_percent >= 0 %}delta-up{% else %}delta-down{% endif %}">
+                                                    {% if row.delta_percent >= 0 %}+{% else %}−{% endif %}{{ row.delta_percent|abs|floatformat:0 }}%
+                                                </span>
+                                            {% elif row.comparison_publications or row.comparison_amount %}
+                                                new
                                             {% else %}
                                                 —
                                             {% endif %}
