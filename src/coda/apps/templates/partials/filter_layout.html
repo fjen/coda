@@ -5,6 +5,14 @@
                 {% include "partials/filter_toolbar.html" %}
             </form>
         {% endif %}
+        {% comment %}
+            The region requests the BARE region URL: hx-include serializes the
+            two filter forms, and params baked into the URL would duplicate
+            the forms' same-name values — duplicated GET keys make value order
+            ambiguous and the active-filter chips render stale values after a
+            date change (they read request.GET's first occurrence).
+        {% endcomment %}
+        {% url filter_region_url_name as filter_region_url %}
         <div id="{{ filter_list_id }}"
              class="filter-list"
              hx-get="{{ filter_region_url }}"

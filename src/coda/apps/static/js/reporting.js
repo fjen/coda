@@ -41,6 +41,27 @@ const syncStickyFilters = () => {
     window.htmx?.process(sticky);
 };
 
+// The region can accumulate overlapping requests when a second filter
+// change fires while the first is still in flight (two quick date edits).
+// Responses may then land out of order and the chips render the stale
+// request's state. htmx 2 has no public abort; drop stale responses
+// instead: each request carries its issue order, and a settle from an
+// older request than the last issued one is ignored.
+let _regionRequestSeq = 0;
+document.addEventListener("htmx:beforeRequest", (event) => {
+    if (event.target.id === "reporting-region") {
+        event.detail.xhr._regionSeq = ++_regionRequestSeq;
+    }
+});
+document.addEventListener("htmx:beforeSwap", (event) => {
+    if (event.target.id === "reporting-region") {
+        const issued = Number(event.detail.xhr?._regionSeq ?? 0);
+        if (issued < _regionRequestSeq) {
+            event.detail.shouldSwap = false;
+        }
+    }
+});
+
 document.addEventListener("htmx:afterSettle", (event) => {
     renderCharts(event.target);
     makeHeadersActionable(event.target);
