@@ -83,14 +83,11 @@ headline cards above them; this class only keeps the anchor id addressable. */
     opacity: 0.8;
 }
 
-/* One sticky band (2.7 + 2.1): search bar, filter chips, list link, group
-   pills — top to bottom, pinned while the sections scroll. The band owns the
-   toolbar (filter_layout renders its copy only when not disabled) and sits
-   outside the swapped region, so it survives every filter change. */
+/* The statistics header band (2.7 + 2.1): search bar, filter chips, list
+   link, tab group. The band owns the toolbar (filter_layout renders its
+   copy only when not disabled) and sits outside the swapped region, so it
+   survives every filter change. */
 .statistics-header-band {
-    position: sticky;
-    top: 0;
-    z-index: 10;
     padding: 0.5rem 0;
     background: var(--coda-background-color, var(--pico-background-color, #fff));
 }
