@@ -117,12 +117,40 @@ class Grouping:
 
 @dataclass(frozen=True, slots=True)
 class Headline:
-    """The headline row of the statistics page (plan §9)."""
+    """The headline row of the statistics page (plan §9, DASHBOARD §2.4).
+
+    ``avg_per_request`` and ``top5_share`` derive from the same fact set;
+    ``top5_share`` is the five largest spend rows' share of total spend —
+    None when no spend exists or the dimension cannot rank (fewer than two
+    rows). Comparison-period values feed the KPI deltas when the compare
+    switch is on; None otherwise.
+    """
 
     publications: int
     spend: Decimal
     requests_without_invoice: int
     requests_unconvertible: int
+    avg_per_request: Decimal | None = None
+    top5_share: Decimal | None = None
+    comparison: "Headline | None" = None
+
+    @property
+    def delta_publications(self) -> Decimal | None:
+        """Signed percent change vs the comparison period's count."""
+        if self.comparison is None or not self.comparison.publications:
+            return None
+        return (
+            (Decimal(self.publications) - Decimal(self.comparison.publications))
+            / Decimal(self.comparison.publications)
+            * 100
+        )
+
+    @property
+    def delta_spend(self) -> Decimal | None:
+        """Signed percent change vs the comparison period's spend."""
+        if self.comparison is None or not self.comparison.spend:
+            return None
+        return (self.spend - self.comparison.spend) / self.comparison.spend * 100
 
 
 @dataclass(frozen=True, slots=True)

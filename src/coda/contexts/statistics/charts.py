@@ -10,6 +10,7 @@ Exact values are NOT here — the template renders the section table.
 
 import math
 from collections.abc import Callable, Sequence
+from decimal import Decimal
 from typing import Any
 
 import plotly.graph_objects as go
@@ -307,11 +308,22 @@ def _row_value(row: GroupRow, measure: Measure) -> int | float:
 
 
 def _headline(facts: Sequence[RequestFact]) -> Headline:
+    spend = sum((fact.paid_out_total for fact in facts), ZERO)
+    publications = len(facts)
+    avg = spend / publications if publications else None
+    # Concentration: the five highest individual request spends' share of
+    # total spend — dimension-free, computable from the fact set alone.
+    top5_share: Decimal | None = None
+    if spend:
+        top5 = sum(sorted((fact.paid_out_total for fact in facts), reverse=True)[:5], ZERO)
+        top5_share = top5 / spend * 100 if spend else None
     return Headline(
-        publications=len(facts),
-        spend=sum((fact.paid_out_total for fact in facts), ZERO),
+        publications=publications,
+        spend=spend,
         requests_without_invoice=sum(1 for fact in facts if not fact.has_invoice),
         requests_unconvertible=sum(1 for fact in facts if fact.invoices_without_rate > 0),
+        avg_per_request=avg,
+        top5_share=top5_share,
     )
 
 

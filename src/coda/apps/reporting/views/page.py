@@ -8,7 +8,7 @@ funding request list's own — reused through ``partials/filter_layout.html``.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
@@ -224,7 +224,12 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "chart_switch_urls": {
             candidate: _chart_switch_url(request, candidate) for candidate in ChartKind
         },
-        "headline": report.headline,
+        "headline": (
+            replace(report.headline, comparison=comparison_report.headline)
+            if comparison_report
+            else report.headline
+        ),
+        "headline_comparison": comparison_report.headline if comparison_report else None,
         "timeline": timeline_figure(weekly_counts(facts)),
         "comparison": comparison_report,
         "compare": bool(comparison_report),

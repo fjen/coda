@@ -192,3 +192,9 @@ headline cards above them; this class only keeps the anchor id addressable. */
         transparent calc(var(--share, 0) * 0.1%)
     );
 }
+
+.headline-delta {
+    font-size: 0.9rem;
+    font-weight: 400;
+    margin-left: 0.35rem;
+}
