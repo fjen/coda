@@ -33,7 +33,12 @@ const syncStickyFilters = () => {
         return;
     }
     sticky.innerHTML = "";
-    sticky.append(...source.querySelectorAll(".active-filter").map((chip) => chip.cloneNode(true)));
+    sticky.append(
+        ...[...source.querySelectorAll(".active-filter")].map((chip) => chip.cloneNode(true)),
+    );
+    // The clones are unknown to htmx — re-process so their remove links swap
+    // the region instead of navigating.
+    window.htmx?.process(sticky);
 };
 
 document.addEventListener("htmx:afterSettle", (event) => {

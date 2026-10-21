@@ -83,18 +83,19 @@ headline cards above them; this class only keeps the anchor id addressable. */
     opacity: 0.8;
 }
 
-/* Sticky duplicate of the rail's active-filter chips (2.7): visible while
-   the sections scroll. Reuses the chip styles from filter-sidebar.css. */
-.statistics-active-filters {
+/* One sticky header band (2.7 + 2.1): search bar, filter chips, list link,
+   group pills — pinned while the sections scroll. The band sits outside the
+   swapped region, so it survives every filter change. */
+.statistics-header-band {
     position: sticky;
-    top: calc(2.6rem + 1rem); /* below the group chip row */
-    z-index: 9;
+    top: 0;
+    z-index: 10;
     padding: 0.5rem 0;
     background: var(--coda-background-color, var(--pico-background-color, #fff));
 }
 
-.statistics-active-filters .active-filters {
-    margin: 0;
+.statistics-active-filters:empty {
+    display: none;
 }
 
 /* Group bands and jump-nav chips (prototype: grouped sections). */
@@ -102,11 +103,6 @@ headline cards above them; this class only keeps the anchor id addressable. */
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    padding: 0.5rem 0;
-    background: var(--coda-background-color, var(--pico-background-color, #fff));
     margin-bottom: 1rem;
 }
 

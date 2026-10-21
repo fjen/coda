@@ -1,18 +1,40 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static getitem %}
 {% block content %}
     <h1 class="my-2">Funding Request Statistics</h1>
-    <p class="statistics-intro">
-        Period basis: the request date. Click on a table row to filter the funding request list to that set.
-    </p>
-    {% if active_filters %}
-        {# Sticky duplicate of the rail's chip row (2.7): pinned below the group chip nav while the sections scroll. Placed before the region so its containing block spans the whole page. Removal swaps the region, same URLs as the rail's chips. #}
+    {% url 'reporting:stats_fundingrequests_region' as region_url %}
+    {% url 'reporting:stats_fundingrequests' as reporting_url %}
+    {# One sticky band (2.7 + 2.1): search bar, active-filter chips, the link
+       into the request list, the group pills — top to bottom in that order.
+       The link and pills live here, outside the swapped region, so they
+       survive every filter change; the chips sync from the rail via
+       reporting.js. #}
+    <div class="statistics-header-band">
+        <form method="get" id="filter-toolbar-form">
+            {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
+        </form>
         <div class="statistics-active-filters">
             {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" %}
         </div>
-    {% endif %}
-    {% url 'reporting:stats_fundingrequests_region' as region_url %}
-    {% url 'reporting:stats_fundingrequests' as reporting_url %}
+        <p class="statistics-intro">
+            <a href="{{ list_view_url }}"
+               title="Show these funding requests in the list, with the active filters">Show the
+            {{ headline.publications }} funding request{{ headline.publications|pluralize }} behind these
+            numbers</a>
+            <span class="statistics-chart-switch">
+                {% for candidate in chart_kinds %}
+                    <a href="{{ chart_switch_urls|getitem:candidate.value }}"
+                       {% if candidate == chart_kind %}aria-current="true" class="statistics-chart-switch-active"{% endif %}
+                    >{{ candidate.value }}</a>{% if not forloop.last %} · {% endif %}
+                {% endfor %}
+            </span>
+        </p>
+        <nav class="statistics-groups" aria-label="Dimension groups">
+            {% for entry in groups %}
+                <a href="#group-{{ entry.group.id }}" class="statistics-group-chip">{{ entry.group.label }}</a>
+            {% endfor %}
+        </nav>
+    </div>
     {% include "partials/filter_layout.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url=region_url filter_list_id="reporting-region" filter_clear_url=reporting_url %}
     <script src="{% static 'js/vendor/plotly.min.js' %}"
             defer
