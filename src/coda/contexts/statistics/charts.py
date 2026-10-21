@@ -386,9 +386,12 @@ def with_comparison(
         "showlegend": True,
         "legend": {
             "orientation": "h",
+            # Right-aligned above the plot area: the panel labels anchor left,
+            # so the legend keeps to the free right side of the top band.
+            "xanchor": "right",
+            "x": 1.0,
             "yanchor": "bottom",
             "y": 1.0,
-            "x": 0,
             "font": {"size": 11},
         },
         "margin": {**figure["layout"].get("margin", {}), "t": LEGEND_BAND},
