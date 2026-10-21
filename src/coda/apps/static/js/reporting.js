@@ -62,13 +62,34 @@ document.addEventListener("htmx:beforeSwap", (event) => {
     }
 });
 
+// The tab nav sits outside the swapped region: after every swap, mark the
+// tab whose `tab` param matches the current URL as current.
+const syncTabState = () => {
+    const params = new URLSearchParams(window.location.search);
+    const active = params.get("tab") ?? "overview";
+    document
+        .querySelectorAll('.statistics-groups [role="group"] a[role="button"]')
+        .forEach((tab) => {
+            const href = new URL(tab.href, window.location.origin);
+            const tabValue = href.searchParams.get("tab") ?? "groups";
+            if (tabValue === active) {
+                tab.setAttribute("aria-current", "true");
+            } else {
+                tab.removeAttribute("aria-current");
+            }
+        });
+};
+
 document.addEventListener("htmx:afterSettle", (event) => {
     renderCharts(event.target);
     makeHeadersActionable(event.target);
     // afterSettle, not afterSwap: the sidebar's fresh chips arrive in the
     // same exchange as the region, often settled after it.
     syncStickyFilters();
+    syncTabState();
 });
+
+syncTabState();
 
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => renderCharts(document));

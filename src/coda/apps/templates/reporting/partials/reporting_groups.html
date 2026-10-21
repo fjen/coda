@@ -1,89 +1,6 @@
 {% load getitem mathfilters %}
-{% comment %}
-    Headline row + one section per dimension (plan §9): the measures' charts
-    side by side over ONE exact-value table — count and spend per row, totals
-    (or the double-counting note) per column. "—" marks a funded value that has paid
-    out nothing; there is no "0.00 €".
-
-    Clicking a table row filters this page to the row's set (the link carries
-    the row's facet param plus the active filters); the region swaps and the
-    sidebar re-renders out of band, so the rail keeps the server-owned state.
-    The link into the funding-request list and the group pill nav sit in the
-    sticky header band above this region (reporting.html), outside the swap.
-{% endcomment %}
-<div class="statistics-headline">
-    <article class="statistics-headline-card">
-        <h4>Publications funded</h4>
-        <p class="statistics-headline-value">
-            {{ headline.publications }}
-            {% if headline.delta_publications is not None %}
-                <span class="{% if headline.delta_publications >= 0 %}delta-up{% else %}delta-down{% endif %} headline-delta">
-                    {% if headline.delta_publications >= 0 %}+{% else %}−{% endif %}{{ headline.delta_publications|abs|floatformat:0 }}%
-                </span>
-            {% endif %}
-        </p>
-    </article>
-    <article class="statistics-headline-card">
-        <h4>Spend incl. tax</h4>
-        <p class="statistics-headline-value">
-            {{ headline.spend|floatformat:2 }} €
-            {% if headline.delta_spend is not None %}
-                <span class="{% if headline.delta_spend >= 0 %}delta-up{% else %}delta-down{% endif %} headline-delta">
-                    {% if headline.delta_spend >= 0 %}+{% else %}−{% endif %}{{ headline.delta_spend|abs|floatformat:0 }}%
-                </span>
-            {% endif %}
-        </p>
-    </article>
-    <article class="statistics-headline-card">
-        <h4>Ø per request</h4>
-        <p class="statistics-headline-value">
-            {% if headline.avg_per_request is not None %}{{ headline.avg_per_request|floatformat:0 }} €{% else %}—{% endif %}
-        </p>
-    </article>
-    <article class="statistics-headline-card">
-        <h4>Top-5 share</h4>
-        <p class="statistics-headline-value">
-            {% if headline.top5_share is not None %}{{ headline.top5_share|floatformat:0 }}%{% else %}—{% endif %}
-        </p>
-        <small>five largest requests' share of spend</small>
-    </article>
-    <article class="statistics-headline-card">
-        <h4>Requests without invoice</h4>
-        <p class="statistics-headline-value">{{ headline.requests_without_invoice }}</p>
-        <small>not in spend yet</small>
-    </article>
-    <article class="statistics-headline-card">
-        <h4>Requests with excluded amounts</h4>
-        <p class="statistics-headline-value">{{ headline.requests_unconvertible }}</p>
-        <small>no rate in the report currency</small>
-    </article>
-</div>
-{% if incomplete_invoices %}
-    <div class="statistics-notice" role="note">
-        {{ headline.requests_unconvertible }}
-        {{ headline.requests_unconvertible|pluralize:"request,requests" }}
-        with excluded amounts — no conversion rate in the report currency
-        , the amounts are not in spend:
-        {% for invoice in incomplete_invoices %}
-            <a href="{% url 'invoices:detail' invoice.pk %}">{{ invoice.number }}</a>{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    </div>
-{% endif %}
-{% if timeline.data %}
-    <article class="statistics-section" id="statistics-timeline">
-        <header>
-            <h3 class="my-0">Requests per week
-                <small class="statistics-section-meta">by request date</small>
-            </h3>
-        </header>
-        {{ timeline|json_script:"chart-timeline" }}
-        <div class="statistics-chart statistics-timeline"
-             data-chart="chart-timeline"
-             role="img"
-             aria-label="Timeline: number of funding requests per week over the selected period"></div>
-    </article>
-{% endif %}
 {% for entry in groups %}
+    {% if active_group == 'groups' or entry.group.id == active_group %}
     <section class="statistics-group" id="group-{{ entry.group.id }}">
         <h2 class="statistics-group-title">{{ entry.group.label }}</h2>
         {% if entry.treemap %}
@@ -117,7 +34,7 @@
                      role="img"
                      aria-label="{{ section.chart.title }}"></div>
                 <details class="statistics-exact">
-                    <summary role="button" class="outline secondary">Exact values ({{ section.rows|length }} rows)</summary>
+                    <summary>Exact values ({{ section.rows|length }} rows)</summary>
                     <table class="statistics-values">
                         <caption class="statistics-caption">Exact values</caption>
                         <thead>
@@ -201,6 +118,7 @@
         {% endfor %}
         </div>
     </section>
+    {% endif %}
 {% empty %}
     <p class="my-2">No funding requests match the selected filters.</p>
 {% endfor %}

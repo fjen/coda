@@ -39,17 +39,28 @@
                 {% endfor %}
             </span>
         </p>
-        <nav class="statistics-groups" aria-label="Dimension groups">
+        <nav class="statistics-groups" aria-label="Statistics views">
             <div role="group">
+                <a href="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab=overview"
+                   hx-get="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab=overview"
+                   hx-target="#reporting-region"
+                   hx-swap="innerHTML"
+                   hx-push-url="true"
+                   role="button"
+                   {% if tab == 'overview' %}aria-current="true"{% endif %}>Overview</a>
                 {% for entry in groups %}
-                    <a href="#group-{{ entry.group.id }}"
+                    <a href="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab={{ entry.group.id }}"
+                       hx-get="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab={{ entry.group.id }}"
+                       hx-target="#reporting-region"
+                       hx-swap="innerHTML"
+                       hx-push-url="true"
                        role="button"
-                       {% if forloop.first %}aria-current="true"{% endif %}>{{ entry.group.label }}</a>
+                       {% if tab == entry.group.id %}aria-current="true"{% endif %}>{{ entry.group.label }}</a>
                 {% endfor %}
             </div>
         </nav>
     </div>
-    {% include "partials/filter_layout.html" with filter_toolbar=False filter_period_in_toolbar=True filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url_name="reporting:stats_fundingrequests_region" filter_list_id="reporting-region" filter_clear_url=reporting_url %}
+    {% include "partials/filter_layout.html" with filter_toolbar=False filter_period_in_toolbar=True filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_content.html" filter_region_url_name="reporting:stats_fundingrequests_region" filter_list_id="reporting-region" filter_clear_url=reporting_url %}
     <script src="{% static 'js/vendor/plotly.min.js' %}"
             defer
             crossorigin="anonymous"></script>

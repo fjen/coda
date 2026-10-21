@@ -1,0 +1,17 @@
+{% load getitem mathfilters %}
+{% if incomplete_invoices %}
+    <div class="statistics-notice" role="note">
+        {{ headline.requests_unconvertible }}
+        {{ headline.requests_unconvertible|pluralize:"request,requests" }}
+        with excluded amounts — no conversion rate in the report currency
+        , the amounts are not in spend:
+        {% for invoice in incomplete_invoices %}
+            <a href="{% url 'invoices:detail' invoice.pk %}">{{ invoice.number }}</a>{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+{% if tab == 'overview' %}
+    {% include 'reporting/partials/reporting_overview.html' %}
+{% else %}
+    {% include 'reporting/partials/reporting_groups.html' %}
+{% endif %}

@@ -137,9 +137,11 @@ if not settings.DEBUG:
 
 
 class ReportingRegionView(ListRegionMixin, TemplateView):
-    """The filter-driven region: sections re-render on every sidebar change,
-    and the sidebar itself swaps back out of band so its widgets keep the
-    server-owned state (same mechanics as the funding request list)."""
+    """The filter-driven region: the content re-renders on every sidebar
+    change, and the sidebar itself swaps back out of band so its widgets keep
+    the server-owned state (same mechanics as the funding request list). The
+    ``tab`` parameter selects the content: ``overview`` (headline + timeline)
+    or the dimension groups."""
 
     template_name = "reporting/partials/reporting_region.html"
     list_url_name = _PAGE_URL
@@ -155,6 +157,13 @@ def _prior_period(start: date, end: date) -> tuple[date, date]:
     """The window of the same length immediately before [start, end]."""
     length = (end - start).days + 1
     return start - timedelta(days=length), start - timedelta(days=1)
+
+
+def _tab_query(request: HttpRequest) -> str:
+    """The page query minus its tab param — nav links append their own."""
+    params = request.GET.copy()
+    params.pop("tab", None)
+    return params.urlencode()
 
 
 def reporting_context(request: HttpRequest) -> dict[str, Any]:
@@ -173,6 +182,9 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     except ValueError:
         kind = ChartKind.BARS
     compare = request.GET.get("compare") == "1" and filter_form.cleaned_data.get("date_range")
+    tab = request.GET.get("tab", "overview")
+    if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
+        tab = "overview"
     comparison_facts: tuple[RequestFact, ...] = ()
     if compare:
         date_range = filter_form.cleaned_data["date_range"]
@@ -233,16 +245,25 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "timeline": timeline_figure(weekly_counts(facts)),
         "comparison": comparison_report,
         "compare": bool(comparison_report),
+        "tab": tab,
+        # The nav links append their tab to the query; the page's own tab
+        # param must not be in the copied params or it duplicates (first
+        # value wins server-side, pinning every tab to the current one).
+        "tab_query": _tab_query(request),
+        "tab_region_url": reverse(_REGION_URL),
         "incomplete_invoices": _incomplete_invoices(facts),
+        # The full group list drives the tab nav; the active tab filters the
+        # rendered sections only.
         "groups": [
             {
                 "group": group,
                 "treemap": treemap if group.has_treemap else None,
-                "sections": group_sections(group),
+                "sections": group_sections(group) if tab == group.id else (),
             }
             for group in DIMENSION_GROUPS
             if group_sections(group) or (group.has_treemap and treemap)
         ],
+        "active_group": tab,
         "sections": all_sections,
     }
 

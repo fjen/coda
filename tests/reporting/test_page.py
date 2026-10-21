@@ -23,6 +23,7 @@ from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import PublicationAttachedConcept
 from coda.apps.reporting.drilldown import facet_param_names
 from coda.apps.reporting.views.page import (
+    DIMENSION_GROUPS,
     DimensionRow,
     DimensionSection,
     MeasureColumn,
@@ -214,30 +215,27 @@ def test__reporting_page__renders_a_section_per_registered_dimension(client: Cli
 def test__reporting_page__every_chart_renders_a_plotly_mount_and_json_script(
     client: Client,
 ) -> None:
+    """Every registered dimension pairs its one combined figure with one
+    mount and one json_script payload; the tabs show one group at a time, so
+    the union over the group tabs covers every dimension, and the treemap
+    (Attribution) and the timeline (Overview) add their mounts."""
     seed()
 
-    html = goto(client).content.decode()
-    dom = parse_html(html)
+    group_ids = [group.id for group in DIMENSION_GROUPS]
+    mounted: set[str] = set()
+    script_ids: set[str] = set()
+    for tab in group_ids:
+        html = goto(client, tab=tab).content.decode()
+        dom = parse_html(html)
+        for element in walk(dom):
+            attrs = dict(element.attributes)
+            if element.name == "div" and attrs.get("data-chart"):
+                mounted.add(str(attrs["data-chart"]))
+            if element.name == "script" and attrs.get("type") == "application/json":
+                script_ids.add(str(attrs.get("id", "")))
 
-    charts = [
-        element
-        for element in walk(dom)
-        if element.name == "div" and (dict(element.attributes).get("data-chart") or "")
-    ]
-    scripts = [
-        element
-        for element in walk(dom)
-        if element.name == "script" and dict(element.attributes).get("type") == "application/json"
-    ]
-    mounted = {str(dict(element.attributes).get("data-chart")) for element in charts}
-    script_ids = {str(dict(element.attributes).get("id", "")) for element in scripts}
-
-    # Every registered dimension pairs its one combined figure with one mount;
-    # the institution-hierarchy treemap adds one more when it renders, and the
-    # weekly timeline one more still.
     expected = {f"chart-{dimension.id}" for dimension in DIMENSIONS}
     expected.add("chart-institution-treemap")
-    expected.add("chart-timeline")
     assert mounted == expected
     assert mounted <= script_ids
 
@@ -277,7 +275,14 @@ def test__reporting_page__currency_incomplete_notice__counts_requests_and_links_
     assert reverse("invoices:detail", args=[fixture.unconvertible_invoice]) in html
     assert number in html
     assert "1 request with excluded amounts" in html
-    assert "Requests with excluded amounts" in html
+    # The KPI card lives on the overview tab; the notice renders on both.
+    overview_html = " ".join(
+        client.get(
+            reverse("reporting:stats_fundingrequests"),
+            data={**PERIOD, "tab": "overview"},
+        ).content.decode().split()
+    )
+    assert "Requests with excluded amounts" in overview_html
 
 
 @pytest.mark.django_db
@@ -287,7 +292,7 @@ def test__reporting_page__paid_out_nothing__renders_dash_not_zero(client: Client
     real) but shows "—" in the spend column — zero-money rows are noise."""
     seed()
 
-    html = goto(client).content.decode()
+    html = goto(client, tab="attribution").content.decode()
 
     institution = re.search(r'id="statistics-institution"[\s\S]*?</table>', html)
     assert institution is not None
@@ -632,7 +637,11 @@ def test__reporting_region__swaps_sidebar_toolbar_count_and_sections(
 ) -> None:
     seed()
 
-    response = client.get(reverse("reporting:stats_fundingrequests_region"), data=PERIOD, headers={"hx-request": "true"})
+    response = client.get(
+        reverse("reporting:stats_fundingrequests_region"),
+        data={**PERIOD, "tab": "publication"},
+        headers={"hx-request": "true"},
+    )
 
     html = response.content.decode()
     assert 'hx-swap-oob="innerHTML:#filter-sidebar-form"' in html
