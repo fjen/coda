@@ -42,6 +42,20 @@
         {% endfor %}
     </div>
 {% endif %}
+{% if timeline.data %}
+    <article class="statistics-section" id="statistics-timeline">
+        <header>
+            <h3 class="my-0">Requests per week
+                <small class="statistics-section-meta">by request date</small>
+            </h3>
+        </header>
+        {{ timeline|json_script:"chart-timeline" }}
+        <div class="statistics-chart statistics-timeline"
+             data-chart="chart-timeline"
+             role="img"
+             aria-label="Timeline: number of funding requests per week over the selected period"></div>
+    </article>
+{% endif %}
 {% for entry in groups %}
     <section class="statistics-group" id="group-{{ entry.group.id }}">
         <h2 class="statistics-group-title">{{ entry.group.label }}</h2>

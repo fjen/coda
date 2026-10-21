@@ -44,6 +44,7 @@ from coda.contexts.statistics.dto import (
     RequestFact,
     StatisticsReport,
 )
+from coda.contexts.statistics.timeline import timeline_figure, weekly_counts
 
 _PAGE_URL = "reporting:stats_fundingrequests"
 _REGION_URL = "reporting:stats_fundingrequests_region"
@@ -213,6 +214,7 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
             candidate: _chart_switch_url(request, candidate) for candidate in ChartKind
         },
         "headline": report.headline,
+        "timeline": timeline_figure(weekly_counts(facts)),
         "comparison": comparison_report,
         "compare": bool(comparison_report),
         "incomplete_invoices": _incomplete_invoices(facts),

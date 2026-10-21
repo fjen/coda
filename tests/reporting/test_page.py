@@ -233,9 +233,11 @@ def test__reporting_page__every_chart_renders_a_plotly_mount_and_json_script(
     script_ids = {str(dict(element.attributes).get("id", "")) for element in scripts}
 
     # Every registered dimension pairs its one combined figure with one mount;
-    # the institution-hierarchy treemap adds one more when it renders.
+    # the institution-hierarchy treemap adds one more when it renders, and the
+    # weekly timeline one more still.
     expected = {f"chart-{dimension.id}" for dimension in DIMENSIONS}
     expected.add("chart-institution-treemap")
+    expected.add("chart-timeline")
     assert mounted == expected
     assert mounted <= script_ids
 
