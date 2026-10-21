@@ -84,6 +84,9 @@
                                 {% for column in section.columns %}
                                     <th scope="col" class="statistics-num">{{ column.label }}</th>
                                 {% endfor %}
+                                {% if compare %}
+                                    <th scope="col" class="statistics-num">vs prev. period</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -118,6 +121,25 @@
                                             {% endif %}
                                         </td>
                                     {% endfor %}
+                                    {% if compare %}
+                                        <td class="statistics-num">
+                                            {% if row.comparison_publications or row.comparison_amount %}
+                                                {% if row.amount is not None and row.comparison_amount %}
+                                                    <span class="{% if row.amount >= row.comparison_amount %}delta-up{% else %}delta-down{% endif %}">
+                                                        {% widthratio row.amount row.comparison_amount 100 %}%
+                                                    </span>
+                                                {% elif row.publications and row.comparison_publications %}
+                                                    <span class="{% if row.publications >= row.comparison_publications %}delta-up{% else %}delta-down{% endif %}">
+                                                        {% widthratio row.publications row.comparison_publications 100 %}%
+                                                    </span>
+                                                {% else %}
+                                                    new
+                                                {% endif %}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
                                 </tr>
                             {% endfor %}
                         </tbody>

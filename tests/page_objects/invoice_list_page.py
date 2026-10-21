@@ -17,13 +17,34 @@ class InvoiceListPage:
     # Navigation
 
     def navigate(self) -> None:
-        # Sidebar filter UI is only rendered at desktop width.
         self._page.set_viewport_size({"width": 1440, "height": 900})
         self._page.goto(self._base_url + reverse("invoices:list"))
         self._page.wait_for_function("() => typeof htmx !== 'undefined'")
         # Readiness guard: fail fast here (sync, not a business assertion) if the page
         # chrome never renders, instead of inside the first test assertion.
         self._list_region.wait_for()
+
+    def open_filter_drawer(self) -> None:
+        """The filter rail is a drawer on every viewport now. Opening it makes
+        the page behind inert — drive the drawer widgets, then close it before
+        asserting on the list or the toolbar."""
+        self._page.evaluate(
+            "() => document.getElementById('filter-sidebar').showModal()"
+        )
+        self._page.wait_for_function(
+            "() => document.getElementById('filter-sidebar').matches(':modal')"
+        )
+        self._page.evaluate(
+            "document.getElementById('filter-sidebar').scrollTo({top: 0})"
+        )
+
+    def close_filter_drawer(self) -> None:
+        self._page.evaluate(
+            "() => document.getElementById('filter-sidebar').close()"
+        )
+        self._page.wait_for_function(
+            "() => !document.getElementById('filter-sidebar').matches(':modal')"
+        )
 
     # Filter actions (each triggers the live list update)
     def sort_by(self, value: str) -> None:

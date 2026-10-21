@@ -17,7 +17,6 @@ class FundingRequestListPage:
     # Navigation
 
     def navigate(self, query: str = "") -> None:
-        # Sidebar filter UI is only rendered at desktop width.
         self._page.set_viewport_size({"width": 1440, "height": 900})
         url = self._base_url + reverse("fundingrequests:list")
         self._page.goto(f"{url}?{query}" if query else url)
@@ -25,6 +24,30 @@ class FundingRequestListPage:
         # Readiness guard: fail fast here (sync, not a business assertion) if the page
         # chrome never renders, instead of inside the first test assertion.
         self._list_region.wait_for()
+
+    def open_filter_drawer(self) -> None:
+        """The filter rail is a drawer on every viewport now. Opening it makes
+        the page behind inert — drive the drawer widgets, then close it before
+        asserting on the list or the toolbar."""
+        self._page.evaluate(
+            "() => document.getElementById('filter-sidebar').showModal()"
+        )
+        self._page.wait_for_function(
+            "() => document.getElementById('filter-sidebar').matches(':modal')"
+        )
+        # A facet list taller than the viewport scrolls the drawer; start at
+        # the top so the header widgets are in view.
+        self._page.evaluate(
+            "document.getElementById('filter-sidebar').scrollTo({top: 0})"
+        )
+
+    def close_filter_drawer(self) -> None:
+        self._page.evaluate(
+            "() => document.getElementById('filter-sidebar').close()"
+        )
+        self._page.wait_for_function(
+            "() => !document.getElementById('filter-sidebar').matches(':modal')"
+        )
 
     # Actions
 

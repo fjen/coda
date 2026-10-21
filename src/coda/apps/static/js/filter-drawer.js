@@ -8,7 +8,6 @@
     return;
   }
 
-  const narrowViewport = window.matchMedia("(width < 1400px)");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let restoreToggleAfterClose = false;
   let isClosing = false;
@@ -24,29 +23,6 @@
     const isModal = dialog.matches(":modal");
     document.body.classList.toggle("filter-drawer-open", isModal);
     toggle.setAttribute("aria-expanded", String(isModal));
-  };
-
-  const focusFirstVisibleDescendant = () => {
-    const candidates = dialog.querySelectorAll(
-      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
-        'select:not([disabled]), textarea:not([disabled]), ' +
-        'search-select:not([disabled]), search-select-multi:not([disabled]), ' +
-        '[tabindex]:not([tabindex="-1"])',
-    );
-    for (const candidate of candidates) {
-      const style = getComputedStyle(candidate);
-      if (
-        candidate.getClientRects().length === 0 ||
-        style.visibility === "hidden" ||
-        style.opacity === "0"
-      ) {
-        continue;
-      }
-      candidate.focus();
-      if (dialog.contains(document.activeElement)) {
-        return;
-      }
-    }
   };
 
   const finishModalClose = () => {
@@ -114,16 +90,9 @@
     }
   });
 
-  // The template starts open for the desktop modeless rail.
-  if (narrowViewport.matches && dialog.open && !dialog.matches(":modal")) {
-    dialog.close();
-  }
   updateModalState();
 
   toggle.addEventListener("click", () => {
-    if (!narrowViewport.matches) {
-      return;
-    }
     if (dialog.matches(":modal")) {
       closeModalForUser();
       return;
@@ -138,7 +107,7 @@
   });
 
   dialog.addEventListener("click", (event) => {
-    if (event.target !== dialog || !dialog.matches(":modal")) {
+    if (event.target !== dialog) {
       return;
     }
     const bounds = dialog.getBoundingClientRect();
@@ -160,37 +129,6 @@
       event.target.closest("#filter-drawer-close")
     ) {
       closeModalForUser();
-    }
-  });
-
-  narrowViewport.addEventListener("change", (event) => {
-    const activeElement = document.activeElement;
-    if (event.matches) {
-      const focusWasInDialog = dialog.contains(activeElement);
-      cancelModalClose();
-      restoreToggleAfterClose = false;
-      if (dialog.open) {
-        dialog.close();
-      }
-      updateModalState();
-      if (focusWasInDialog) {
-        toggle.focus();
-      }
-      return;
-    }
-
-    const shouldMoveFocus = dialog.contains(activeElement) || activeElement === toggle;
-    cancelModalClose();
-    restoreToggleAfterClose = false;
-    if (dialog.matches(":modal")) {
-      dialog.close();
-    }
-    if (!dialog.open) {
-      dialog.show();
-    }
-    updateModalState();
-    if (shouldMoveFocus) {
-      focusFirstVisibleDescendant();
     }
   });
 })();

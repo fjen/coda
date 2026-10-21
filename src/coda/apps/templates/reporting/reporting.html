@@ -11,6 +11,15 @@
     <div class="statistics-header-band">
         <form method="get" id="filter-toolbar-form">
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
+            {% include "partials/filter_period.html" %}
+            <label class="compare-switch">
+                <input type="checkbox"
+                       name="compare"
+                       value="1"
+                       role="switch"
+                       {% if compare %}checked{% endif %}>
+                Compare with previous period
+            </label>
         </form>
         <div class="statistics-active-filters">
             {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" %}
@@ -38,7 +47,7 @@
             </div>
         </nav>
     </div>
-    {% include "partials/filter_layout.html" with filter_toolbar=False filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url=region_url filter_list_id="reporting-region" filter_clear_url=reporting_url %}
+    {% include "partials/filter_layout.html" with filter_toolbar=False filter_period_in_toolbar=True filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url=region_url filter_list_id="reporting-region" filter_clear_url=reporting_url %}
     <script src="{% static 'js/vendor/plotly.min.js' %}"
             defer
             crossorigin="anonymous"></script>

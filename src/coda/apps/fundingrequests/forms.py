@@ -769,11 +769,22 @@ class FundingRequestListFilterForm(forms.Form):
 
     def search_criteria(
         self,
+        *,
+        date_override: tuple[datetime.date, datetime.date] | None = None,
     ) -> tuple[list[fq.FundingRequestSearchCriteria], ListSortOrder]:
-        """Translate validated filter fields into criteria and their sort order."""
+        """Translate validated filter fields into criteria and their sort order.
+
+        ``date_override`` replaces the form's date range — the comparison
+        toggle fetches the previous period through the same filters.
+        """
         cleaned = valid_fields(self)
+        if date_override is not None:
+            start, end = date_override
+            date_range = fq.DateRange(start=start, end=end)
+        else:
+            date_range = cleaned.get("date_range")
         params = fq.FundingRequestSearchParams(
-            date_range=cleaned.get("date_range"),
+            date_range=date_range,
             review_results=cleaned.get("processing_status", []),
             payment_statuses=cleaned.get("payment_status", []),
             labels=sorted(self.selected_label_ids),

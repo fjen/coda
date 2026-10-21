@@ -37,6 +37,23 @@ def _goto_statistics(page: Page, live_server: LiveServer, **extra: str) -> None:
     page.wait_for_function("() => typeof Plotly !== 'undefined'")
 
 
+def _open_filter_drawer(page: Page) -> None:
+    """The filter rail is a drawer on every viewport now; tests that interact
+    with its widgets open it first (it blocks the page behind it while open).
+    Idempotent: if the dialog is mid-close, reopen and wait until it sits at
+    its settled position — a closing dialog slides off-screen while still
+    reporting visible."""
+    page.evaluate(
+        "() => { const d = document.getElementById('filter-sidebar');"
+        " if (!d.matches(':modal')) { d.showModal(); } }"
+    )
+    page.wait_for_function(
+        "() => { const d = document.getElementById('filter-sidebar');"
+        " const r = d.getBoundingClientRect();"
+        " return d.matches(':modal') && Math.abs(r.right - window.innerWidth) < 2; }"
+    )
+
+
 def _wait_for_charts(page: Page) -> None:
     page.wait_for_function(
         "() => [...document.querySelectorAll('[data-chart]')]"
@@ -130,6 +147,7 @@ def test__journal_facet__typing__narrow_options_server_side(
         modelfactory.journal(publisher_id=publisher.pk, title=f"Facet {index:03d}")
     match = modelfactory.journal(publisher_id=publisher.pk, title="Qwertyuiop unique")
     _goto_statistics(coda_page, live_server)
+    _open_filter_drawer(coda_page)
 
     facet = coda_page.locator("search-select-multi#id_journal")
     search_box = facet.locator(".search-input")
@@ -163,6 +181,7 @@ def test__journal_facet__selecting_a_match__keeps_the_narrowed_list(
     first = modelfactory.journal(publisher_id=publisher.pk, title="Qwertyuiop unique")
     second = modelfactory.journal(publisher_id=publisher.pk, title="Qwertyuiop second")
     _goto_statistics(coda_page, live_server)
+    _open_filter_drawer(coda_page)
 
     facet = coda_page.locator("search-select-multi#id_journal")
     search_box = facet.locator(".search-input")
@@ -194,6 +213,11 @@ def test__journal_facet__selecting_a_match__keeps_the_narrowed_list(
     expect(facet.locator('input[name="journal_q"]')).to_have_value("qwerty")
     expect(search_box).to_have_value("qwerty")
 
+    # Clear all lives in the drawer header; the drawer scrolls its facet
+    # content, so bring it home before clicking.
+    coda_page.evaluate(
+        "document.getElementById('filter-sidebar').scrollTo({top: 0})"
+    )
     coda_page.locator(filter_ui_selectors.FILTER_CLEAR_ALL).click()
 
     expect(facet.locator("option")).to_have_count(_FACET_CHOICE_LIMIT)

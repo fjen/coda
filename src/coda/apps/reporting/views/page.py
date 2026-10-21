@@ -9,7 +9,7 @@ funding request list's own — reused through ``partials/filter_layout.html``.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -54,13 +54,17 @@ _REGION_ELEMENT_ID = "reporting-region"
 class DimensionRow:
     """One row of a dimension's shared exact-value table; ``link`` filters the
     statistics page to the row's set (toggle off when already active), None
-    when it cannot be expressed as list filters (Other/Unknown/Unassigned)."""
+    when it cannot be expressed as list filters (Other/Unknown/Unassigned).
+    ``comparison_publications``/``comparison_amount`` carry the previous
+    period's values when the compare toggle is on, None otherwise."""
 
     label: str
     publications: int
     amount: Decimal | None
     link: str | None
     is_other: bool = False
+    comparison_publications: int | None = None
+    comparison_amount: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -135,6 +139,12 @@ class ReportingRegionView(ListRegionMixin, TemplateView):
 reporting_region = ReportingRegionView.as_view()
 
 
+def _prior_period(start: date, end: date) -> tuple[date, date]:
+    """The window of the same length immediately before [start, end]."""
+    length = (end - start).days + 1
+    return start - timedelta(days=length), start - timedelta(days=1)
+
+
 def reporting_context(request: HttpRequest) -> dict[str, Any]:
     """The whole page context: filtered facts -> report -> sections, plus the
     shared rail's form/chips state."""
@@ -150,6 +160,16 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         kind = ChartKind(request.GET.get("chart", ChartKind.BARS))
     except ValueError:
         kind = ChartKind.BARS
+    compare = request.GET.get("compare") == "1" and filter_form.cleaned_data.get("date_range")
+    comparison_facts: tuple[RequestFact, ...] = ()
+    if compare:
+        date_range = filter_form.cleaned_data["date_range"]
+        prior_start, prior_end = _prior_period(date_range.start, date_range.end)
+        comparison_criteria = filter_form.search_criteria(date_override=(prior_start, prior_end))[0]
+        comparison_facts = build_facts(
+            queries.fetch_requests(comparison_criteria), GlobalPreferences.get_home_currency()
+        )
+    comparison_report = charts.report(comparison_facts, DIMENSIONS, kind=kind) if compare else None
     report = charts.report(facts, DIMENSIONS, kind=kind)
 
     date_errors = filter_form.errors.get("date_range")
@@ -168,6 +188,7 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     all_sections = _sections(
         report,
         DrilldownLinks.build(request, region_url_name=_REGION_URL, vocabularies=vocabularies),
+        comparison=comparison_report,
     )
     treemap = institution_treemap(facts, Institution.objects.all())
     by_id = {section.dimension_id: section for section in all_sections}
@@ -192,6 +213,8 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
             candidate: _chart_switch_url(request, candidate) for candidate in ChartKind
         },
         "headline": report.headline,
+        "comparison": comparison_report,
+        "compare": bool(comparison_report),
         "incomplete_invoices": _incomplete_invoices(facts),
         "groups": [
             {
@@ -224,15 +247,27 @@ def _default_period_url(request: HttpRequest) -> str:
     return build_url(_PAGE_URL, params)
 
 
-def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[DimensionSection]:
+def _sections(
+    report: StatisticsReport,
+    links: DrilldownLinks,
+    comparison: StatisticsReport | None = None,
+) -> list[DimensionSection]:
     """Figure and shared table under their dimension, in registry order;
-    dimensions without a non-empty grouping do not get an empty section."""
+    dimensions without a non-empty grouping do not get an empty section.
+    ``comparison`` carries the previous period's report when the compare
+    toggle is on — its rows join by label into the delta columns."""
     specs = {spec.dimension_id: spec for spec in report.charts}
+    comparison_specs = {spec.dimension_id: spec for spec in comparison.charts} if comparison else {}
     sections: list[DimensionSection] = []
     for dimension in DIMENSIONS:
         spec = specs.get(dimension.id)
         if spec is None:
             continue
+        comparison_rows = (
+            {row.label: row for row in comparison_specs[dimension.id].rows}
+            if dimension.id in comparison_specs
+            else {}
+        )
         rows = tuple(
             DimensionRow(
                 label=row.label,
@@ -240,6 +275,12 @@ def _sections(report: StatisticsReport, links: DrilldownLinks) -> list[Dimension
                 amount=row.amount,
                 link=links.link(dimension.id, row),
                 is_other=row.is_other,
+                comparison_publications=comparison_rows[row.label].publications
+                if row.label in comparison_rows
+                else 0,
+                comparison_amount=comparison_rows[row.label].amount
+                if row.label in comparison_rows
+                else Decimal(0),
             )
             for row in spec.rows
         )
@@ -306,7 +347,13 @@ DIMENSION_GROUPS: tuple[DimensionGroup, ...] = (
     DimensionGroup(
         id="publication",
         label="Publication",
-        section_ids=("subject_area", "publication_type", "publication_form", "license", "open_access_type"),
+        section_ids=(
+            "subject_area",
+            "publication_type",
+            "publication_form",
+            "license",
+            "open_access_type",
+        ),
     ),
     DimensionGroup(id="venues", label="Venues", section_ids=("journal", "publisher")),
     DimensionGroup(

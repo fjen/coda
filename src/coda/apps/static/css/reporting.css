@@ -99,6 +99,40 @@ headline cards above them; this class only keeps the anchor id addressable. */
     display: none;
 }
 
+/* The period lives in the toolbar band (2.8): search + period + Filters
+   button on one row. */
+.filter-period {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+
+.filter-period label {
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+/* Comparison switch (2.8): a Pico role=switch checkbox in the toolbar band;
+   its change event re-issues the region request with compare=1 (the region
+   includes this form). */
+.compare-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+/* Period deltas in the tables. */
+.delta-up {
+    color: var(--coda-success-color, #1a7f37);
+}
+
+.delta-down {
+    color: var(--coda-danger-color, #b42318);
+}
+
 /* Group bands and the jump-nav button group (2.1, Pico [role=group] with
    <a role=button> children, like the label-create links elsewhere).
    Pico stretches the group full-width and pads its buttons wide — undo both,

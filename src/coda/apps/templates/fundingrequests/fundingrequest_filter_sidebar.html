@@ -34,15 +34,17 @@
         {{ filter_form.publication_form.label_tag }}
         {{ filter_form.publication_form }}
     </div>
-    <div class="form-row">
-        <label for="id_start_date">Start Date</label>
-        {{ filter_form.date_range.subwidgets.0 }}
-    </div>
-    <div class="form-row">
-        <label for="id_end_date">End Date</label>
-        {{ filter_form.date_range.subwidgets.1 }}
-        {% include "partials/filter_date_error.html" %}
-    </div>
+    {% if not filter_period_in_toolbar %}
+        <div class="form-row">
+            <label for="id_start_date">Start Date</label>
+            {{ filter_form.date_range.subwidgets.0 }}
+        </div>
+        <div class="form-row">
+            <label for="id_end_date">End Date</label>
+            {{ filter_form.date_range.subwidgets.1 }}
+            {% include "partials/filter_date_error.html" %}
+        </div>
+    {% endif %}
     <div class="form-row">
         {{ filter_form.publication_states.label_tag }}
         {{ filter_form.publication_states }}
