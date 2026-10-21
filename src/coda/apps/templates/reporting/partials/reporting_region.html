@@ -6,9 +6,7 @@
     would silence every later sidebar change.
 {% endcomment %}
 {% include "partials/filter_toolbar_count.html" with toolbar_filter_count_oob=True %}
-{% if tab != "overview" %}
-    <div hx-swap-oob="innerHTML:#filter-sidebar-form">
-        {% include "fundingrequests/fundingrequest_filter_sidebar.html" %}
-    </div>
-{% endif %}
+<div hx-swap-oob="innerHTML:#filter-sidebar-form">
+    {% include "fundingrequests/fundingrequest_filter_sidebar.html" with filter_period_in_toolbar=True %}
+</div>
 {% include "reporting/partials/reporting_content.html" %}
