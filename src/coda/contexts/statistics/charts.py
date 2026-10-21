@@ -372,6 +372,12 @@ def with_comparison(
             )
         augmented.append(trace)
 
+    # The legend lives OUTSIDE the plot area, in a top margin band sized to
+    # hold it: margin.t = legend band (~34px) + panel annotation (~16px) +
+    # breathing room. With y=1.02/yanchor bottom the legend's top edge sits
+    # just above the plot area's top; the annotations sit below it, inside
+    # their panels.
+    LEGEND_BAND = 52
     layout = {
         **figure["layout"],
         "barmode": "group",
@@ -385,7 +391,6 @@ def with_comparison(
             "x": 0,
             "font": {"size": 11},
         },
-        # Legend rides in the top margin; give it room over the annotations.
-        "margin": {**figure["layout"].get("margin", {}), "t": 48},
+        "margin": {**figure["layout"].get("margin", {}), "t": LEGEND_BAND},
     }
     return {**figure, "data": augmented, "layout": layout}

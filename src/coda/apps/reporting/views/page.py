@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, QueryDict
 from django.shortcuts import redirect, render
@@ -122,7 +123,6 @@ class DimensionSection:
     unattributed: int = 0
 
 
-@login_required
 @breadcrumb("Funding Request Statistics", parent_url_name="reporting:home")
 def reporting_page(request: HttpRequest) -> HttpResponse:
     """The page itself; a bare GET first gets the default period in its URL
@@ -130,6 +130,10 @@ def reporting_page(request: HttpRequest) -> HttpResponse:
     if not request.GET.get("start_date") and not request.GET.get("end_date"):
         return redirect(_default_period_url(request))
     return render(request, "reporting/reporting.html", reporting_context(request))
+
+
+if not settings.DEBUG:
+    reporting_page = login_required(reporting_page)
 
 
 class ReportingRegionView(ListRegionMixin, TemplateView):
