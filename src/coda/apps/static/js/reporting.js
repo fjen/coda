@@ -71,7 +71,16 @@ const syncTabState = () => {
         .querySelectorAll('.statistics-groups [role="group"] a[role="button"]')
         .forEach((tab) => {
             const href = new URL(tab.href, window.location.origin);
+            // The nav sits outside the swapped region: after a drawer filter
+            // change, the rendered links carry the STALE query. Rewrite each
+            // link's query from the current location, keeping only its own
+            // tab value.
             const tabValue = href.searchParams.get("tab") ?? "groups";
+            const fresh = new URLSearchParams(window.location.search);
+            fresh.set("tab", tabValue);
+            const freshUrl = href.origin + href.pathname + "?" + fresh.toString();
+            tab.href = freshUrl;
+            tab.setAttribute("hx-get", freshUrl);
             if (tabValue === active) {
                 tab.setAttribute("aria-current", "true");
             } else {
@@ -86,7 +95,12 @@ document.addEventListener("htmx:afterSettle", (event) => {
     // afterSettle, not afterSwap: the sidebar's fresh chips arrive in the
     // same exchange as the region, often settled after it.
     syncStickyFilters();
-    syncTabState();
+    // The region response pushes the canonical URL AFTER settle (timing
+    // varies with the cache backend); sync the tab links against the FINAL
+    // location — a few deferred runs cover the push.
+    for (const delay of [0, 100, 300, 600]) {
+        setTimeout(syncTabState, delay);
+    }
 });
 
 syncTabState();

@@ -11,17 +11,18 @@
         filter_toolbar=False); everything sits outside the swapped region.
     {% endcomment %}
     <div class="statistics-header-band">
-        <form method="get" id="filter-toolbar-form">
+        {% url 'reporting:stats_fundingrequests_region' as filter_region_url %}
+        <form id="filter-toolbar-form"
+              method="get"
+              action="{{ filter_region_url }}"
+              hx-get="{{ filter_region_url }}"
+              hx-target="#reporting-region"
+              hx-swap="innerHTML"
+              hx-include="#filter-sidebar-form, #filter-toolbar-form"
+              hx-indicator="#reporting-region-loading"
+              hx-trigger="submit, change from:#filter-sidebar-form, input delay:300ms from:.filter-search, change[!event.target.matches('.filter-search') || event.target.dataset.lastInputValue !== event.target.value]">
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
             {% include "partials/filter_period.html" %}
-            <label class="compare-switch">
-                <input type="checkbox"
-                       name="compare"
-                       value="1"
-                       role="switch"
-                       {% if compare %}checked{% endif %}>
-                Compare with previous period
-            </label>
         </form>
         <div class="statistics-active-filters">
             {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" %}
