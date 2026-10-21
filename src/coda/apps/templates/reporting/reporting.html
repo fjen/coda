@@ -43,6 +43,7 @@
             <div role="group">
                 <a href="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab=overview"
                    hx-get="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab=overview"
+                   hx-indicator="#reporting-region-loading"
                    hx-target="#reporting-region"
                    hx-swap="innerHTML"
                    hx-push-url="true"
@@ -51,6 +52,7 @@
                 {% for entry in groups %}
                     <a href="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab={{ entry.group.id }}"
                        hx-get="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab={{ entry.group.id }}"
+                       hx-indicator="#reporting-region-loading"
                        hx-target="#reporting-region"
                        hx-swap="innerHTML"
                        hx-push-url="true"
