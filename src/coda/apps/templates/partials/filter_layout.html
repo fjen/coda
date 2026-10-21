@@ -17,8 +17,12 @@
              class="filter-list"
              hx-get="{{ filter_region_url }}"
              hx-include="#filter-sidebar-form, #filter-toolbar-form"
+             hx-indicator="#{{ filter_list_id }}-loading"
              hx-trigger="change from:#filter-sidebar-form, change[!event.target.matches('.filter-search') || event.target.dataset.lastInputValue !== event.target.value] from:#filter-toolbar-form, input delay:300ms from:.filter-search, submit from:#filter-toolbar-form, submit from:#filter-sidebar-form">
             {% include filter_list_region_template %}
+            <div id="{{ filter_list_id }}-loading" class="filter-loading" aria-hidden="true">
+                <span class="filter-loading-spinner" role="status" aria-label="Loading"></span>
+            </div>
         </div>
     </div>
     {% include "partials/filter_drawer.html" %}
