@@ -4,11 +4,6 @@
     <h1 class="my-2">Funding Request Statistics</h1>
     {% url 'reporting:stats_fundingrequests_region' as region_url %}
     {% url 'reporting:stats_fundingrequests' as reporting_url %}
-    {# One sticky band (2.7 + 2.1): search bar, active-filter chips, the link
-       into the request list, the group pills — top to bottom in that order.
-       The link and pills live here, outside the swapped region, so they
-       survive every filter change; the chips sync from the rail via
-       reporting.js. #}
     <div class="statistics-header-band">
         <form method="get" id="filter-toolbar-form">
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
@@ -30,9 +25,13 @@
             </span>
         </p>
         <nav class="statistics-groups" aria-label="Dimension groups">
-            {% for entry in groups %}
-                <a href="#group-{{ entry.group.id }}" class="statistics-group-chip">{{ entry.group.label }}</a>
-            {% endfor %}
+            <div role="group">
+                {% for entry in groups %}
+                    <a href="#group-{{ entry.group.id }}"
+                       role="button"
+                       {% if forloop.first %}aria-current="true"{% endif %}>{{ entry.group.label }}</a>
+                {% endfor %}
+            </div>
         </nav>
     </div>
     {% include "partials/filter_layout.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url=region_url filter_list_id="reporting-region" filter_clear_url=reporting_url %}

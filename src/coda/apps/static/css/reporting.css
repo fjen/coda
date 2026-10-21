@@ -98,24 +98,26 @@ headline cards above them; this class only keeps the anchor id addressable. */
     display: none;
 }
 
-/* Group bands and jump-nav chips (prototype: grouped sections). */
-.statistics-groups {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-bottom: 1rem;
+/* Group bands and the jump-nav button group (2.1, Pico [role=group] with
+   <a role=button> children, like the label-create links elsewhere).
+   Pico stretches the group full-width and pads its buttons wide — undo both,
+   like pagination__jump does. */
+.statistics-groups [role="group"] {
+    width: 100%;
+    margin-bottom: 0;
 }
 
-.statistics-group-chip {
-    padding: 0.25rem 0.9rem;
-    border: 1px solid var(--coda-border-color, #ccc);
-    border-radius: 999px;
-    font-size: 0.85rem;
-    text-decoration: none;
+.statistics-groups [role="group"] a[role="button"] {
+    margin: 0;
+    --pico-form-element-spacing-horizontal: 0.75rem;
 }
 
-.statistics-group-chip:hover {
-    background: var(--coda-primary-background, #eef);
+.statistics-groups [role="group"] a[role="button"][aria-current="true"] {
+    /* Pico's aria-current styling on group buttons is subtle; make the
+       active group unmistakable. */
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .statistics-group {
