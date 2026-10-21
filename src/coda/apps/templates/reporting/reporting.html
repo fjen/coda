@@ -3,9 +3,14 @@
 {% block content %}
     <h1 class="my-2">Funding Request Statistics</h1>
     <p class="statistics-intro">
-        Period basis: the request date.
-        Every table row that can be expressed as list filters links to the funding request list showing exactly that set.
+        Period basis: the request date. Click on a table row to filter the funding request list to that set.
     </p>
+    {% if active_filters %}
+        {# Sticky duplicate of the rail's chip row (2.7): pinned below the group chip nav while the sections scroll. Placed before the region so its containing block spans the whole page. Removal swaps the region, same URLs as the rail's chips. #}
+        <div class="statistics-active-filters">
+            {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" %}
+        </div>
+    {% endif %}
     {% url 'reporting:stats_fundingrequests_region' as region_url %}
     {% url 'reporting:stats_fundingrequests' as reporting_url %}
     {% include "partials/filter_layout.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_sections.html" filter_region_url=region_url filter_list_id="reporting-region" filter_clear_url=reporting_url %}

@@ -23,16 +23,32 @@ const renderCharts = (root) => {
     });
 };
 
+// The sticky chip row (2.7) sits outside the swapped region, so a filter
+// change leaves it stale. The rail's chips re-render out of band with the
+// region — copy them over after every swap.
+const syncStickyFilters = () => {
+    const sticky = document.querySelector(".statistics-active-filters");
+    const source = document.querySelector(".filter-sidebar .active-filters");
+    if (!sticky || !source) {
+        return;
+    }
+    sticky.innerHTML = "";
+    sticky.append(...source.querySelectorAll(".active-filter").map((chip) => chip.cloneNode(true)));
+};
+
+document.addEventListener("htmx:afterSettle", (event) => {
+    renderCharts(event.target);
+    makeHeadersActionable(event.target);
+    // afterSettle, not afterSwap: the sidebar's fresh chips arrive in the
+    // same exchange as the region, often settled after it.
+    syncStickyFilters();
+});
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => renderCharts(document));
 } else {
     renderCharts(document);
 }
-
-document.addEventListener("htmx:afterSwap", (event) => {
-    renderCharts(event.target);
-    makeHeadersActionable(event.target);
-});
 
 // Exact-value tables sort client-side: click (or Enter/Space on) a column
 // header. Interaction is delegated to the document, so tables htmx swaps in
