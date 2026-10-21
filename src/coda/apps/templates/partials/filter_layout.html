@@ -1,8 +1,10 @@
 <div class="filter-layout">
     <div class="filter-main">
-        <form method="get" id="filter-toolbar-form">
-            {% include "partials/filter_toolbar.html" %}
-        </form>
+        {% if filter_toolbar is not False %}
+            <form method="get" id="filter-toolbar-form">
+                {% include "partials/filter_toolbar.html" %}
+            </form>
+        {% endif %}
         <div id="{{ filter_list_id }}"
              class="filter-list"
              hx-get="{{ filter_region_url }}"
