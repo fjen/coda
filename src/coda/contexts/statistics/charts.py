@@ -313,3 +313,79 @@ def _headline(facts: Sequence[RequestFact]) -> Headline:
         requests_without_invoice=sum(1 for fact in facts if not fact.has_invoice),
         requests_unconvertible=sum(1 for fact in facts if fact.invoices_without_rate > 0),
     )
+
+
+#: Muted variant of a measure color for the comparison series — same hue,
+#: washed out, so "then" reads as background to "now".
+def _muted(color: str) -> str:
+    return color + "66"  # 40% alpha over the panel background
+
+
+def with_comparison(
+    figure: dict[str, Any],
+    spec: ChartSpec,
+    comparison: ChartSpec,
+) -> dict[str, Any]:
+    """Augment a bars figure with the comparison period's series.
+
+    One grouped pair per measure panel: the current series keeps its color
+    and tip labels; the comparison series renders muted and unlabeled (the
+    exact values live in the table's delta column). ``barmode: group`` is
+    the correct encoding — current and previous are two series of the same
+    measure over the same categories; stacking would claim they sum, and
+    overlaying would hide one behind the other. Non-bar figures pass
+    through unchanged (the treemap is out of scope for comparison).
+    """
+    if not spec.rows or not figure.get("data"):
+        return figure
+    if any(trace.get("type") != "bar" for trace in figure["data"]):
+        return figure
+
+    comparison_rows = {row.label: row for row in comparison.rows}
+    measures = spec.columns
+    data = list(figure["data"])
+    # Traces are in measure order (one per panel); insert each comparison
+    # series directly BEFORE its current-series twin: within a grouped pair,
+    # plotly draws traces left-to-right in trace order, and "previous" reads
+    # first (earlier in time) then "current".
+    augmented: list[dict[str, Any]] = []
+    for index, trace in enumerate(data):
+        measure = measures[index].measure if index < len(measures) else None
+        if measure is not None:
+            values = [
+                _row_value(comparison_rows[row.label], measure)
+                if row.label in comparison_rows
+                else 0
+                for row in spec.rows
+            ]
+            augmented.append(
+                {
+                    "type": "bar",
+                    "x": [row.label for row in spec.rows],
+                    "y": values,
+                    "name": f"previous — {MEASURE_LABELS[measure]}",
+                    "marker": {"color": _muted(MEASURE_COLORS[measure])},
+                    "yaxis": trace.get("yaxis", "y"),
+                    "hovertemplate": "%{x}: %{y:,.2f}<extra>previous period</extra>",
+                    "showlegend": True,
+                }
+            )
+        augmented.append(trace)
+
+    layout = {
+        **figure["layout"],
+        "barmode": "group",
+        "bargap": 0.25,
+        "bargroupgap": 0.05,
+        "showlegend": True,
+        "legend": {
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.0,
+            "x": 0,
+            "font": {"size": 11},
+        },
+        # Legend rides in the top margin; give it room over the annotations.
+        "margin": {**figure["layout"].get("margin", {}), "t": 48},
+    }
+    return {**figure, "data": augmented, "layout": layout}

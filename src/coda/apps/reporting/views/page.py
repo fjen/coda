@@ -316,7 +316,7 @@ def _sections(
             DimensionSection(
                 dimension_id=dimension.id,
                 label=dimension.label,
-                chart=_panel(spec),
+                chart=_panel(spec, comparison_specs.get(dimension.id)),
                 rows=rows,
                 columns=tuple(
                     MeasureColumn(
@@ -338,11 +338,14 @@ def _sections(
     return sections
 
 
-def _panel(spec: ChartSpec) -> ChartPanel:
+def _panel(spec: ChartSpec, comparison: ChartSpec | None = None) -> ChartPanel:
+    figure = spec.figure
+    if comparison is not None:
+        figure = charts.with_comparison(figure, spec, comparison)
     return ChartPanel(
         data_id=f"chart-{spec.dimension_id}",
         title=spec.title,
-        figure=spec.figure,
+        figure=figure,
     )
 
 
