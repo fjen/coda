@@ -241,7 +241,10 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
             else report.headline
         ),
         "headline_comparison": comparison_report.headline if comparison_report else None,
-        "timeline": timeline_figure(weekly_counts(facts)),
+        "timeline": timeline_figure(
+            weekly_counts(facts),
+            weekly_counts(comparison_facts) if comparison_facts else None,
+        ),
         "comparison": comparison_report,
         "compare": bool(comparison_report),
         # The switch label names the actual prior window, not a vague "previous".
