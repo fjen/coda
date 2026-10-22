@@ -257,9 +257,7 @@ def _default_period_url(request: HttpRequest) -> str:
     return build_url(_PAGE_URL, params)
 
 
-def _dimension_row(
-    row: GroupRow, comparison: GroupRow | None, link: str | None
-) -> DimensionRow:
+def _dimension_row(row: GroupRow, comparison: GroupRow | None, link: str | None) -> DimensionRow:
     """One table row, joined with its comparison-period counterpart.
 
     The delta is spend-based when both sides carry an amount, publications
@@ -273,9 +271,11 @@ def _dimension_row(
     if row.amount is not None and comparison_amount:
         delta = (row.amount - comparison_amount) / comparison_amount * 100
     elif comparison_publications:
-        delta = (Decimal(row.publications) - comparison_publications) / Decimal(
-            comparison_publications
-        ) * 100
+        delta = (
+            (Decimal(row.publications) - comparison_publications)
+            / Decimal(comparison_publications)
+            * 100
+        )
     return DimensionRow(
         label=row.label,
         publications=row.publications,
