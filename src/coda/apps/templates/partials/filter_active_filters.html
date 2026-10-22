@@ -1,5 +1,5 @@
 <div class="active-filters"
-     id="active-filters"
+     id="{{ filter_chips_id|default:'active-filters' }}"
      aria-label="Active filters">
     {% for chip in active_filters %}
         <span class="active-filter {{ chip.kind }}"

@@ -23,23 +23,9 @@ const renderCharts = (root) => {
     });
 };
 
-// The sticky chip row (2.7) sits outside the swapped region, so a filter
-// change leaves it stale. The rail's chips re-render out of band with the
-// region — copy them over after every swap.
-const syncStickyFilters = () => {
-    const sticky = document.querySelector(".statistics-active-filters");
-    const source = document.querySelector(".filter-sidebar .active-filters");
-    if (!sticky || !source) {
-        return;
-    }
-    sticky.innerHTML = "";
-    sticky.append(
-        ...[...source.querySelectorAll(".active-filter")].map((chip) => chip.cloneNode(true)),
-    );
-    // The clones are unknown to htmx — re-process so their remove links swap
-    // the region instead of navigating.
-    window.htmx?.process(sticky);
-};
+// The band's chip row is server-rendered out of band with every region
+// response (reporting_region.html swaps #statistics-active-filters) — no
+// client-side copy step.
 
 // The region can accumulate overlapping requests when a second filter
 // change fires while the first is still in flight (two quick date edits).
@@ -71,9 +57,6 @@ document.addEventListener("htmx:beforeSwap", (event) => {
 document.addEventListener("htmx:afterSettle", (event) => {
     renderCharts(event.target);
     makeHeadersActionable(event.target);
-    // afterSettle, not afterSwap: the sidebar's fresh chips arrive in the
-    // same exchange as the region, often settled after it.
-    syncStickyFilters();
 });
 
 if (document.readyState === "loading") {

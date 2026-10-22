@@ -34,8 +34,8 @@
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
             {% include "partials/filter_period.html" %}
         </form>
-        <div class="statistics-active-filters">
-            {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" %}
+        <div class="statistics-active-filters" id="statistics-active-filters">
+            {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" filter_chips_id="statistics-active-filters-list" %}
         </div>
         <nav id="statistics-groups" class="statistics-groups my-1" aria-label="Statistics views">
             {% include "reporting/partials/statistics_tab_nav.html" %}
