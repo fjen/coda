@@ -28,7 +28,7 @@
     it out of band from the same server-owned chip state as the rail's copy.
 {% endcomment %}
 <div hx-swap-oob="innerHTML:#statistics-active-filters">
-    {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" filter_chips_id="statistics-active-filters-list" %}
+    {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" filter_chips_id="statistics-active-filters-list" active_filters=band_active_filters %}
 </div>
 {% comment %}
     The period block lives in the band too; re-render it so the compare

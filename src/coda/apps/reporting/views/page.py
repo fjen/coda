@@ -152,8 +152,12 @@ class ReportingRegionView(ListRegionMixin, TemplateView):
 reporting_region = ReportingRegionView.as_view()
 
 
-def _prior_period(start: date, end: date) -> tuple[date, date]:
-    """The window of the same length immediately before [start, end]."""
+def _prior_period(start: date, end: date) -> tuple[date, date] | None:
+    """The window of the same length immediately before [start, end], or None
+    for an unbounded range (a missing bound uses the date.min/max sentinels —
+    "the same length before eternity" is not a window and would overflow)."""
+    if start == date.min or end == date.max:
+        return None
     length = (end - start).days + 1
     return start - timedelta(days=length), start - timedelta(days=1)
 
@@ -181,8 +185,7 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     # The switch label names the prior window even when unchecked — the user
     # should see what "compare" would cover for the current date range.
     compare_period: tuple[date, date] | None = None
-    if filter_form.cleaned_data.get("date_range"):
-        date_range = filter_form.cleaned_data["date_range"]
+    if (date_range := filter_form.cleaned_data.get("date_range")) is not None:
         compare_period = _prior_period(date_range.start, date_range.end)
     if compare and compare_period:
         comparison_criteria = filter_form.search_criteria(date_override=compare_period)[0]
@@ -222,6 +225,11 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "contract_list": contracts,
         "label_state": sorted(parse_label_ids(request.GET.getlist("labels"))),
         "active_filters": summary.chips,
+        # The band's chip row: without the date chips. The two date inputs sit
+        # in the toolbar right there — a removable duplicate's close action
+        # cannot win against the inputs' own serialization, so it only
+        # confuses. The drawer's rail keeps its chips.
+        "band_active_filters": [chip for chip in summary.chips if chip.kind != "date"],
         "filter_count": summary.count,
         "filter_errors": summary.errors,
         "filter_clear_url": reverse(_PAGE_URL),

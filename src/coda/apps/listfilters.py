@@ -117,7 +117,7 @@ class ActiveFilter:
     text: str
     remove_url: str
     remove_fragment_url: str
-    kind: Literal["neutral", "label"]
+    kind: Literal["neutral", "label", "date"]
     label_color: str | None
 
 
@@ -168,7 +168,7 @@ class ChipBuilder:
         value: str | None,
         text: str,
         *,
-        kind: Literal["neutral", "label"] = "neutral",
+        kind: Literal["neutral", "label", "date"] = "neutral",
         label_color: str | None = None,
     ) -> None:
         """Append one chip. ``value=None`` drops the whole key (checkbox filters)."""
@@ -239,7 +239,7 @@ class ChipBuilder:
         for key, prefix in ((start_key, "From "), (end_key, "To ")):
             value = self._request.GET.get(key)
             if value:
-                self.add(key, value, f"{prefix}{value}")
+                self.add(key, value, f"{prefix}{value}", kind="date")
 
     def summary(self) -> FilterSummary:
         return FilterSummary(chips=self._chips, count=len(self._chips), errors=self._errors)
