@@ -91,10 +91,9 @@ def timeline_figure(
     if comparison:
         comparison_max = max((p.count for p in comparison), default=0)
         max_count = max(max_count, comparison_max)
-        # Two stacked panels over a shared week axis (the week labels anchor
-        # to the bottom panel only): previous on top (y2), current below
-        # (y). Panel annotations name the periods — clearer than a legend
-        # for two full-width rows.
+        # Two independent stacked panels: previous on top (its own x/y2),
+        # current below (its own x/y) — no axis sharing, each panel's week
+        # labels render under it. Panel annotations name the periods.
         data = [
             _trace(
                 comparison,
@@ -106,7 +105,7 @@ def timeline_figure(
             _trace(points, color="#0072B2", name="current period", yaxis="y", hover_suffix=""),
         ]
         layout = {
-            "height": 320,
+            "height": 340,
             "margin": {"l": 40, "r": 10, "t": 30, "b": 30},
             "xaxis": {
                 "type": "category",
@@ -114,20 +113,25 @@ def timeline_figure(
                 "automargin": True,
                 "tickformat": "%d.%m.",
                 "nticks": min(len(points), 26),
+                "anchor": "y",
+                "domain": [0.0, 1.0],
             },
             "xaxis2": {
                 "type": "category",
-                "matches": "x",
-                "showticklabels": False,
+                "tickangle": -45,
+                "automargin": True,
+                "tickformat": "%d.%m.",
+                "nticks": min(len(comparison), 26),
+                "anchor": "y2",
             },
             "yaxis": {
                 "title": {"text": "requests / week"},
-                "domain": [0.0, 0.44],
+                "domain": [0.0, 0.42],
                 "rangemode": "nonnegative",
                 "range": [0, max_count * 1.15] if max_count else [0, 1],
             },
             "yaxis2": {
-                "domain": [0.56, 1.0],
+                "domain": [0.58, 1.0],
                 "rangemode": "nonnegative",
                 "range": [0, max_count * 1.15] if max_count else [0, 1],
             },
@@ -149,7 +153,7 @@ def timeline_figure(
                     "text": "current period",
                     "x": 0.0,
                     "xref": "paper",
-                    "y": 0.44,
+                    "y": 0.42,
                     "yref": "paper",
                     "yanchor": "bottom",
                     "xanchor": "left",

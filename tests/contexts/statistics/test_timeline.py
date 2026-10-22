@@ -33,13 +33,14 @@ def test__timeline__comparison_stacks_two_panels() -> None:
     assert current_trace["yaxis"] == "y"
     assert current_trace["x"] == ["2026-04-27"]
     assert current_trace["y"] == [1]
-    # Shared scale, two domains, week labels only under the bottom panel.
+    # Shared scale, two domains, each panel labels its own weeks.
     assert figure["layout"]["yaxis2"]["range"] == figure["layout"]["yaxis"]["range"]
-    assert figure["layout"]["yaxis"]["domain"] == [0.0, 0.44]
-    assert figure["layout"]["yaxis2"]["domain"] == [0.56, 1.0]
-    assert figure["layout"]["xaxis2"]["matches"] == "x"
-    assert figure["layout"]["xaxis2"]["showticklabels"] is False
-    assert figure["layout"]["height"] == 320
+    assert figure["layout"]["yaxis"]["domain"] == [0.0, 0.42]
+    assert figure["layout"]["yaxis2"]["domain"] == [0.58, 1.0]
+    # No axis sharing: the top panel carries its own week labels.
+    assert "matches" not in figure["layout"]["xaxis2"]
+    assert figure["layout"]["xaxis2"].get("showticklabels", True) is not False
+    assert figure["layout"]["height"] == 340
     # Panel annotations name the periods (no legend).
     assert [a["text"] for a in figure["layout"]["annotations"]] == [
         "previous period",
