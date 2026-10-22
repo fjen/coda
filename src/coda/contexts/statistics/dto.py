@@ -20,6 +20,21 @@ class InstitutionRef:
 
 
 @dataclass(frozen=True, slots=True)
+class ContractRef:
+    """One contract year exactly as attached to a request: the row's true
+    identity is (pk, year) — a contract's name is not unique and one contract
+    spans several years, so neither alone identifies a chart row."""
+
+    pk: int
+    name: str
+    year: int
+
+    @property
+    def label(self) -> str:
+        return f"{self.name} ({self.year})"
+
+
+@dataclass(frozen=True, slots=True)
 class FundingSourceRef:
     """A cost-splitting funding source, the institution-kind one that pays (ADR-0008)."""
 
@@ -47,7 +62,7 @@ class RequestFact:
     journal: str | None
     publisher: str | None
     # repeated dimensions (ADR-0007)
-    contracts: tuple[str, ...]
+    contracts: tuple["ContractRef", ...]
     funders: tuple[str, ...]
     institutions: tuple[InstitutionRef, ...]
     no_corresponding_author: bool
@@ -72,7 +87,12 @@ class Measure(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class GroupRow:
-    """One row of a grouping: a dimension value and the measures under it."""
+    """One row of a grouping: a dimension value and the measures under it.
+
+    ``ref`` mirrors ``Contribution.ref``: the value's structured identity when
+    the label alone cannot express it (contract rows). The Other fold has no
+    identity — it aggregates many values.
+    """
 
     label: str
     publications: int
@@ -80,6 +100,7 @@ class GroupRow:
     is_unknown: bool = False
     is_other: bool = False
     is_unassigned: bool = False
+    ref: object | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -39,10 +39,15 @@ class Contribution:
 
     ``amount`` is gross, expressed in the dimension's money notion; dimensions with no
     spend measure contribute zero amounts.
+
+    ``ref`` carries the value's structured identity when the label alone cannot
+    express it (the contract dimension: a row is (pk, year), not a display
+    string) — the drill-down reads it instead of parsing the label.
     """
 
     label: str
     amount: Decimal
+    ref: object | None = None
 
 
 Contributions = Callable[[RequestFact], tuple[Contribution, ...]]
@@ -143,7 +148,9 @@ CONTRACT = Dimension(
     additive_publications=False,
     money=Measure.PAID_OUT,
     additive_spend=False,
-    contributions=lambda fact: _paid_out_under_each(fact.contracts, fact),
+    contributions=lambda fact: tuple(
+        Contribution(ref.label, fact.paid_out_total, ref=ref) for ref in fact.contracts
+    ),
 )
 
 COST_TYPE = Dimension(

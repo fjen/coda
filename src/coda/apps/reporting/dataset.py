@@ -16,7 +16,12 @@ from coda.apps.invoices.mappers._domain import FundingSourceDomainMapper
 from coda.apps.invoices.models import Invoice, Position
 from coda.apps.publications.models import Publication
 from coda.contexts.statistics.dimensions import FORM_UNKNOWN
-from coda.contexts.statistics.dto import FundingSourceRef, InstitutionRef, RequestFact
+from coda.contexts.statistics.dto import (
+    ContractRef,
+    FundingSourceRef,
+    InstitutionRef,
+    RequestFact,
+)
 from coda.contexts.statistics.measures import (
     gross_assignment,
     gross_of,
@@ -80,7 +85,11 @@ def _build_fact(request: FundingRequest, report_currency: Currency) -> RequestFa
         journal=(journal.title if (journal := publication.article_journal) else None),
         publisher=_publisher_name(publication),
         contracts=_unique(
-            f"{attached.contract.name} ({attached.contract_year})"
+            ContractRef(
+                pk=attached.contract.pk,
+                name=attached.contract.name,
+                year=attached.contract_year,
+            )
             for attached in sorted(publication.attached_contracts.all(), key=lambda ac: ac.pk)
         ),
         funders=_unique(

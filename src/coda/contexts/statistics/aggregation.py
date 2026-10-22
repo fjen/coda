@@ -28,6 +28,7 @@ def group_by(
     counts: dict[str, int] = {}
     amounts: dict[str, Decimal] = {}
     sources: dict[str, set[int]] = {}
+    refs: dict[str, object] = {}
     for fact in facts:
         contributions = dimension.contributions(fact)
         for label in dict.fromkeys(contribution.label for contribution in contributions):
@@ -37,6 +38,8 @@ def group_by(
             amounts[contribution.label] = (
                 amounts.get(contribution.label, ZERO) + contribution.amount
             )
+            if contribution.ref is not None:
+                refs[contribution.label] = contribution.ref
 
     def row(label: str) -> GroupRow:
         return GroupRow(
@@ -45,6 +48,7 @@ def group_by(
             amount=amounts[label] if spend is not None else None,
             is_unknown=label == UNKNOWN,
             is_unassigned=label == UNASSIGNED,
+            ref=refs.get(label),
         )
 
     def rank(label: str) -> tuple[Decimal, int, str]:

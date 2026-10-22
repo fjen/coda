@@ -7,7 +7,7 @@ import pytest
 from coda.apps.contracts.mappers._domain import ContractDomainMapper
 from coda.apps.invoices import funding_source_repository
 from coda.apps.publications.models import AttachedContract
-from coda.contexts.statistics.dto import FundingSourceRef, InstitutionRef
+from coda.contexts.statistics.dto import ContractRef, FundingSourceRef, InstitutionRef
 from coda.domain.author import InstitutionId, Role
 from coda.domain.money import Currency
 from coda.domain.publication import Authors
@@ -112,7 +112,7 @@ def test__publication_position_under_contract_attached_to_publication__build_fac
 
     fact = helpers.facts()[0]
 
-    assert fact.contracts == (f"{contract.name} (2024)",)
+    assert fact.contracts == (ContractRef(pk=contract.pk, name=contract.name, year=2024),)
     assert fact.paid_out_total == Decimal("1190.00")
 
 

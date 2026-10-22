@@ -5,7 +5,7 @@ from tests.contexts.statistics.factories import institution, make_fact, source
 
 from coda.contexts.statistics import dimensions
 from coda.contexts.statistics.aggregation import group_by
-from coda.contexts.statistics.dto import Measure
+from coda.contexts.statistics.dto import ContractRef, Measure
 
 
 def test__group_by_publisher__carries_both_measures_on_every_row() -> None:
@@ -264,14 +264,18 @@ def test__single_valued_dimensions__group_by_their_own_attribute(
 
 
 def test__group_by_contract__counts_the_request_and_its_money_under_each_contract() -> None:
-    fact = make_fact(contracts=("Deal 2026", "DFG 2024"), paid_out_total=Decimal("100.00"))
+    dfg = ContractRef(pk=1, name="DFG 2024", year=2024)
+    deal = ContractRef(pk=2, name="Deal 2026", year=2026)
+    fact = make_fact(contracts=(deal, dfg), paid_out_total=Decimal("100.00"))
 
     grouping = group_by((fact,), dimensions.by_id("contract"))
 
     assert [(r.label, r.publications, r.amount) for r in grouping.rows] == [
-        ("DFG 2024", 1, Decimal("100.00")),
-        ("Deal 2026", 1, Decimal("100.00")),
+        (dfg.label, 1, Decimal("100.00")),
+        (deal.label, 1, Decimal("100.00")),
     ]
+    # Each row carries its structured identity for the drill-down.
+    assert {r.ref for r in grouping.rows} == {deal, dfg}
     assert grouping.non_additive == frozenset({Measure.PUBLICATIONS, Measure.PAID_OUT})
 
 

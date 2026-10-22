@@ -21,7 +21,6 @@ from dataclasses import dataclass
 
 from django.http import HttpRequest, QueryDict
 
-from coda.apps.contracts.models import Contract
 from coda.apps.fundingrequests.models import FundingOrganization
 from coda.apps.institutions.models import Institution
 from coda.apps.invoices.models import FundingSource
@@ -29,7 +28,7 @@ from coda.apps.journals.models import Journal
 from coda.apps.listfilters import build_url
 from coda.apps.preferences.models import GlobalPreferences, PreloadedVocabularyProvider
 from coda.apps.publishers.models import Publisher
-from coda.contexts.statistics.dto import GroupRow
+from coda.contexts.statistics.dto import ContractRef, GroupRow
 from coda.domain.publication import License, OpenAccessType
 
 _LIST_URL = "fundingrequests:list"
@@ -93,7 +92,7 @@ class DrilldownLinks:
         if row.is_other or row.is_unknown or row.is_unassigned:
             return None
         if dimension_id == "contract":
-            return self._contract_link(row.label)
+            return self._contract_link(row.ref)
         values = self._facet_values(dimension_id, row.label)
         if not values:
             return None
@@ -105,19 +104,16 @@ class DrilldownLinks:
             return [label]
         return self._by_name[dimension_id].get(label, [])
 
-    def _contract_link(self, label: str) -> str | None:
-        """A contract row is "(name) (year)"; both parts must be filters, or the
-        link would widen the chart's set to every year of the contract."""
-        name, _, year = label.rpartition(" (")
-        if not name or not year.endswith(")"):
-            return None
-        pks = [str(pk) for pk in Contract.objects.filter(name=name).values_list("pk", flat=True)]
-        if len(pks) != 1:
+    def _contract_link(self, ref: object | None) -> str | None:
+        """The row's ref carries its identity: one contract (pk) and the year
+        the request attached. Both must filter, or the link would widen the
+        chart's set to every year of the contract."""
+        if not isinstance(ref, ContractRef):
             return None
         return self._url(
             {
-                "contract_name": (pks, False),
-                "contract_year": ([year[:-1]], False),
+                "contract_name": ([str(ref.pk)], False),
+                "contract_year": ([str(ref.year)], False),
             }
         )
 

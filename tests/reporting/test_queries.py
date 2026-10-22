@@ -75,8 +75,9 @@ def test__reporting_page__render__fits_a_fixed_query_budget(
     choice lists, the drill-down lookup tables and exactly one round-trip for
     the configured vocabularies — the form and the drill-down share the page's
     one pre-loaded provider. The institution treemap adds one query for the
-    hierarchy."""
+    hierarchy. Contract drill-down links carry their (pk, year) identity in
+    the fact data, costing no queries."""
     seed()
 
-    with django_assert_num_queries(49):
+    with django_assert_num_queries(48):
         assert goto(client).status_code == 200
