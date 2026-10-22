@@ -14,47 +14,45 @@ def test__timeline__single_series_keeps_the_bare_figure() -> None:
     trace = figure["data"][0]
     assert trace["name"] == "current period"
     assert trace["showlegend"] is False
-    assert figure["layout"]["showlegend"] is False
+    assert "yaxis2" not in figure["layout"]
+    assert figure["layout"]["height"] == 180
 
 
-def test__timeline__comparison_adds_muted_previous_series() -> None:
+def test__timeline__comparison_stacks_two_panels() -> None:
     current = weekly_counts([make_fact()])  # one week, one request
     previous = [TimelinePoint(week_start=datetime.date(2026, 1, 5), count=3)]
 
     figure = timeline_figure(current, previous)
 
+    # Previous panel on top (y2), current below (y); each keeps its own weeks.
     previous_trace, current_trace = figure["data"]
-    assert previous_trace["name"] == "previous period"
+    assert previous_trace["yaxis"] == "y2"
+    assert previous_trace["x"] == ["2026-01-05"]
+    assert previous_trace["y"] == [3]
     assert previous_trace["marker"]["color"] == "#0072B266"  # muted current hue
-    assert previous_trace["showlegend"] is True
-    assert current_trace["showlegend"] is True
-    # Shared x axis (the current period's weeks); the previous week not in
-    # the current range contributes 0 — a gap, not a missing column.
-    assert previous_trace["x"] == current_trace["x"]
-    assert previous_trace["y"] == [0]
-    # Grouped bars, legend above the plot area.
-    assert figure["layout"]["barmode"] == "group"
-    assert figure["layout"]["showlegend"] is True
-    assert figure["layout"]["margin"]["t"] == 52
-    # The y scale spans both series.
-    assert figure["layout"]["yaxis"]["range"] == [0, 3 * 1.15]
-
-
-def test__timeline__comparison_counts_match_by_week() -> None:
-    # Current span: the two weeks of 2026-04-27 and 2026-05-04.
-    facts = [make_fact(), make_fact(request_date=datetime.date(2026, 5, 4))]
-    # Comparison facts land on those same Mondays: two in the first week,
-    # one in the second — the muted series mirrors them onto the shared axis.
-    previous_facts = [
-        make_fact(request_date=datetime.date(2026, 4, 27)),
-        make_fact(request_date=datetime.date(2026, 4, 29)),
-        make_fact(request_date=datetime.date(2026, 5, 4)),
+    assert current_trace["yaxis"] == "y"
+    assert current_trace["x"] == ["2026-04-27"]
+    assert current_trace["y"] == [1]
+    # Shared scale, two domains, week labels only under the bottom panel.
+    assert figure["layout"]["yaxis2"]["range"] == figure["layout"]["yaxis"]["range"]
+    assert figure["layout"]["yaxis"]["domain"] == [0.0, 0.44]
+    assert figure["layout"]["yaxis2"]["domain"] == [0.56, 1.0]
+    assert figure["layout"]["xaxis2"]["matches"] == "x"
+    assert figure["layout"]["xaxis2"]["showticklabels"] is False
+    assert figure["layout"]["height"] == 320
+    # Panel annotations name the periods (no legend).
+    assert [a["text"] for a in figure["layout"]["annotations"]] == [
+        "previous period",
+        "current period",
     ]
 
-    figure = timeline_figure(weekly_counts(facts), weekly_counts(previous_facts))
 
-    # Figure order: previous series first, then current (matches the bars'
-    # grouped pairs — "previous" reads first, earlier in time).
-    previous_trace, current_trace = figure["data"][0], figure["data"][1]
-    assert current_trace["y"] == [1, 1]
-    assert previous_trace["y"] == [2, 1]
+def test__timeline__comparison_scale_spans_both_periods() -> None:
+    current = weekly_counts([make_fact()])  # max 1
+    previous = [TimelinePoint(week_start=datetime.date(2026, 1, 5), count=5)]
+
+    figure = timeline_figure(current, previous)
+
+    expected = [0, 5 * 1.15]
+    assert figure["layout"]["yaxis"]["range"] == expected
+    assert figure["layout"]["yaxis2"]["range"] == expected
