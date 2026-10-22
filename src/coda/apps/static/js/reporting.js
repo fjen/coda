@@ -81,6 +81,14 @@ document.addEventListener("click", (event) => {
     window.htmx?.trigger("#filter-toolbar-form", "submit");
 });
 
+document.addEventListener("htmx:afterSettle", (event) => {
+    renderCharts(event.target);
+    makeHeadersActionable(event.target);
+    // afterSettle, not afterSwap: the sidebar's fresh chips arrive in the
+    // same exchange as the region, often settled after it.
+    syncStickyFilters();
+});
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => renderCharts(document));
 } else {
