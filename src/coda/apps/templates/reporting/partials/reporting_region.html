@@ -30,4 +30,11 @@
 <div hx-swap-oob="innerHTML:#statistics-active-filters">
     {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" filter_chips_id="statistics-active-filters-list" %}
 </div>
+{% comment %}
+    The period block lives in the band too; re-render it so the compare
+    switch's label tracks an edited date range.
+{% endcomment %}
+<div hx-swap-oob="innerHTML:#filter-period">
+    {% include "partials/filter_period.html" %}
+</div>
 {% include "reporting/partials/reporting_content.html" %}

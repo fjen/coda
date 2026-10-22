@@ -13,7 +13,6 @@ from pytest_django.live_server_helper import LiveServer
 
 from coda.apps.fundingrequests.forms import _FACET_CHOICE_LIMIT
 from coda.apps.publications.models import LinkType
-from coda.contexts.statistics.dimensions import DIMENSIONS
 from tests import modelfactory
 from tests.page_objects import filter_ui_selectors
 from tests.reporting import helpers
@@ -70,7 +69,8 @@ def test__reporting_page__plotly__renders_one_svg_per_chart_mount(
     _goto_statistics(coda_page, live_server)
     _wait_for_charts(coda_page)
 
-    expected = len(DIMENSIONS) + 2  # + the institution-hierarchy treemap and the weekly timeline
+    # The default view is the overview tab: headline + timeline only.
+    expected = 1
     expect(coda_page.locator("[data-chart]")).to_have_count(expected)
 
     painted = coda_page.eval_on_selector_all(
@@ -88,7 +88,7 @@ def test__reporting_page__row_link__filters_the_page_in_place(
     swaps, the URL gains the facet param, and the headline narrows to the
     clicked row's set. Clicking again toggles the filter off."""
     fixture = seed()
-    _goto_statistics(coda_page, live_server)
+    _goto_statistics(coda_page, live_server, tab="venues")
     _wait_for_charts(coda_page)
 
     # The exact-value table lives in a collapsed <details>; open it first.
@@ -99,8 +99,9 @@ def test__reporting_page__row_link__filters_the_page_in_place(
     row_link.click()
 
     coda_page.wait_for_url(lambda url: f"journal={fixture.journal.pk}" in url)
-    expect(coda_page.locator("#reporting-region")).to_contain_text("Publications funded")
-    expect(coda_page.locator(".statistics-headline-value").first).to_have_text("1")
+    # The headline cards are overview-only; the filter's effect shows in the
+    # intro link's count (first item on every tab).
+    expect(coda_page.locator(".statistics-intro")).to_contain_text("1 funding request")
 
     # Toggle off: the row link now carries the filter-removing URL. The swap
     # re-renders the region with the details collapsed again — reopen first.
@@ -108,7 +109,7 @@ def test__reporting_page__row_link__filters_the_page_in_place(
     coda_page.locator("#statistics-journal details.statistics-exact summary").click()
     row_link.click()
     coda_page.wait_for_url(lambda url: "journal=" not in url)
-    expect(coda_page.locator(".statistics-headline-value").first).to_have_text("3")
+    expect(coda_page.locator(".statistics-intro")).to_contain_text("3 funding requests")
 
 
 @pytest.mark.ui_test
@@ -249,7 +250,7 @@ def test__statistics_table__column_header__sorts_the_rows(
     position = helpers.position(request.publication.pk, Decimal("500.00"), Decimal("0.00"))
     helpers.invoice([position])
 
-    _goto_statistics(coda_page, live_server)
+    _goto_statistics(coda_page, live_server, tab="venues")
 
     # The exact-value table lives in a collapsed <details>; open it first.
     coda_page.locator("#statistics-publisher details.statistics-exact summary").click()

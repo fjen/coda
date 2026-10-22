@@ -178,10 +178,14 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
         tab = "overview"
     comparison_facts: tuple[RequestFact, ...] = ()
-    if compare:
+    # The switch label names the prior window even when unchecked — the user
+    # should see what "compare" would cover for the current date range.
+    compare_period: tuple[date, date] | None = None
+    if filter_form.cleaned_data.get("date_range"):
         date_range = filter_form.cleaned_data["date_range"]
-        prior_start, prior_end = _prior_period(date_range.start, date_range.end)
-        comparison_criteria = filter_form.search_criteria(date_override=(prior_start, prior_end))[0]
+        compare_period = _prior_period(date_range.start, date_range.end)
+    if compare and compare_period:
+        comparison_criteria = filter_form.search_criteria(date_override=compare_period)[0]
         comparison_facts = build_facts(
             queries.fetch_requests(comparison_criteria), GlobalPreferences.get_home_currency()
         )
@@ -232,6 +236,8 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "timeline": timeline_figure(weekly_counts(facts)),
         "comparison": comparison_report,
         "compare": bool(comparison_report),
+        # The switch label names the actual prior window, not a vague "previous".
+        "compare_period": compare_period,
         "tab": tab,
         "incomplete_invoices": _incomplete_invoices(facts),
         # The full group list drives the tab nav; the active tab filters the
