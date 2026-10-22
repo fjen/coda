@@ -9,4 +9,13 @@
 <div hx-swap-oob="innerHTML:#filter-sidebar-form">
     {% include "fundingrequests/fundingrequest_filter_sidebar.html" with filter_period_in_toolbar=True %}
 </div>
+{% comment %}
+    The tab nav lives in the header band, outside the swapped region. The
+    server owns the tab (the band's hidden input serializes it with every
+    region request), so the response also pushes the nav out of band —
+    the freshly rendered buttons carry aria-current directly, no JS.
+{% endcomment %}
+<div hx-swap-oob="innerHTML:#statistics-groups">
+    {% include "reporting/partials/statistics_tab_nav.html" %}
+</div>
 {% include "reporting/partials/reporting_content.html" %}

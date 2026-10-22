@@ -70,13 +70,6 @@ class Measure(StrEnum):
     FUNDED_BY = "funded_by"
 
 
-class ChartKind(StrEnum):
-    """Which figure the page renders per dimension (switchable per URL)."""
-
-    BARS = "bars"  # vertical columns, one panel per measure, names on the x axis
-    PIES = "pies"  # pie pair, labels left of the plots
-
-
 @dataclass(frozen=True, slots=True)
 class GroupRow:
     """One row of a grouping: a dimension value and the measures under it."""

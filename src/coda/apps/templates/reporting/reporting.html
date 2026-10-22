@@ -21,33 +21,15 @@
               hx-include="#filter-sidebar-form, #filter-toolbar-form"
               hx-indicator="#reporting-region-loading"
               hx-trigger="submit, change from:#filter-sidebar-form, input delay:300ms from:.filter-search, change[!event.target.matches('.filter-search') || event.target.dataset.lastInputValue !== event.target.value]">
+            <input type="hidden" name="tab" value="{{ tab }}">
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
             {% include "partials/filter_period.html" %}
         </form>
         <div class="statistics-active-filters">
             {% include "partials/filter_active_filters.html" with filter_list_id="reporting-region" %}
         </div>
-        <nav class="statistics-groups" aria-label="Statistics views">
-            <div role="group">
-                <a href="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab=overview"
-                   hx-get="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab=overview"
-                   hx-indicator="#reporting-region-loading"
-                   hx-target="#reporting-region"
-                   hx-swap="innerHTML"
-                   hx-push-url="true"
-                   role="button"
-                   {% if tab == 'overview' %}aria-current="true"{% endif %}>Overview</a>
-                {% for entry in groups %}
-                    <a href="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab={{ entry.group.id }}"
-                       hx-get="{% url 'reporting:stats_fundingrequests_region' %}?{{ tab_query }}&tab={{ entry.group.id }}"
-                       hx-indicator="#reporting-region-loading"
-                       hx-target="#reporting-region"
-                       hx-swap="innerHTML"
-                       hx-push-url="true"
-                       role="button"
-                       {% if tab == entry.group.id %}aria-current="true"{% endif %}>{{ entry.group.label }}</a>
-                {% endfor %}
-            </div>
+        <nav id="statistics-groups" class="statistics-groups my-1" aria-label="Statistics views">
+            {% include "reporting/partials/statistics_tab_nav.html" %}
         </nav>
     </div>
     {% include "partials/filter_layout.html" with filter_toolbar=False filter_period_in_toolbar=True filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_content.html" filter_region_url_name="reporting:stats_fundingrequests_region" filter_list_id="reporting-region" filter_clear_url=reporting_url %}

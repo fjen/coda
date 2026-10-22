@@ -140,9 +140,11 @@ class DrilldownLinks:
 
 def list_view_url(request: HttpRequest) -> str:
     """The funding-request list with the page's whole filter set (§2 #7):
-    the one bridge from the statistics page into the data behind it."""
+    the one bridge from the statistics page into the data behind it. The
+    statistics page's own ``tab`` is not a list filter."""
     params: QueryDict = request.GET.copy()
     params.pop("page", None)
+    params.pop("tab", None)
     return build_url(_LIST_URL, params)
 
 

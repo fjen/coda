@@ -9,7 +9,7 @@ Exact values are NOT here — the template renders the section table.
 """
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
@@ -18,7 +18,6 @@ import plotly.graph_objects as go
 from coda.contexts.statistics.aggregation import DEFAULT_TOP_N, group_by
 from coda.contexts.statistics.dimensions import ZERO, Dimension
 from coda.contexts.statistics.dto import (
-    ChartKind,
     ChartSpec,
     ColumnSpec,
     Grouping,
@@ -48,13 +47,9 @@ NON_ADDITIVE_NOTE = (
 )
 
 
-def build_figure(grouping: Grouping, kind: ChartKind = ChartKind.BARS) -> dict[str, Any]:
-    """Dispatch to the encoding the page asked for."""
-    builders: dict[ChartKind, Callable[[Grouping], dict[str, Any]]] = {
-        ChartKind.BARS: _bars_figure,
-        ChartKind.PIES: _pies_figure,
-    }
-    return builders[kind](grouping)
+def build_figure(grouping: Grouping) -> dict[str, Any]:
+    """Dispatch to the encoding the page renders."""
+    return _bars_figure(grouping)
 
 
 def _bars_figure(grouping: Grouping) -> dict[str, Any]:
@@ -154,101 +149,14 @@ def _label_band_px(labels: Sequence[str]) -> int:
     return 14 + int(longest * 7 * 0.7)
 
 
-def _pies_figure(grouping: Grouping) -> dict[str, Any]:
-    """Pie pair as subplots: publications left, spend right, the shared
-    legend's labels stacked along the LEFT side of the figure. Only honest
-    where the grouping is additive — non-additive groupings fall back to
-    bars, because pie grammar claims the slices complete the whole
-    (ADR-0007)."""
-    if grouping.non_additive:
-        return _bars_figure(grouping)
-    colors = _entity_colors(grouping.rows)
-    traces: list[dict[str, Any]] = []
-    for index, measure in enumerate(grouping.measures):
-        values = [_row_value(row, measure) for row in grouping.rows]
-        if not any(values):
-            continue
-        traces.append(
-            {
-                "type": "pie",
-                "labels": [row.label for row in grouping.rows],
-                "values": values,
-                "name": MEASURE_LABELS[measure],
-                "textinfo": "label+percent",
-                "textposition": "inside",
-                "hovertemplate": "%{label}: %{value:,} (%{percent})<extra></extra>",
-                "domain": {"x": [0.18, 0.5] if index == 0 else [0.62, 0.94]},
-                "marker": {"colors": colors, "line": {"color": "#fff", "width": 1}},
-                "sort": False,
-            }
-        )
-    if not traces:
-        return _bars_figure(grouping)
-    # One subtitle per subplot, centred over its pie: which measure is which.
-    annotations = [
-        {
-            "text": MEASURE_LABELS[measure],
-            "x": 0.34 if index == 0 else 0.78,
-            "y": 1.0,
-            "xref": "paper",
-            "yref": "paper",
-            "xanchor": "center",
-            "yanchor": "bottom",
-            "showarrow": False,
-            "font": {"size": 13},
-        }
-        for index, measure in enumerate(grouping.measures)
-        if any(_row_value(row, measure) for row in grouping.rows)
-    ]
-    return {
-        "data": traces,
-        "layout": {
-            # Fixed: every pie figure renders at the same height regardless
-            # of how many slices the legend stacks.
-            "height": 420,
-            "showlegend": True,
-            "legend": {
-                # Labels stacked along the LEFT edge, one per entity.
-                "x": 0.0,
-                "xanchor": "left",
-                "y": 0.5,
-                "yanchor": "middle",
-                "orientation": "v",
-                "font": {"size": 11},
-            },
-            "annotations": annotations,
-            "margin": {"l": 10, "r": 10, "t": 40, "b": 10},
-        },
-        "config": {"responsive": True},
-    }
-
-
-def _entity_colors(rows: Sequence[GroupRow]) -> list[str]:
-    """One stable hue per entity across both pies (Okabe–Ito, cycled)."""
-    palette = [
-        "#4E79A7",
-        "#F28E2B",
-        "#59A14F",
-        "#E15759",
-        "#76B7B2",
-        "#EDC948",
-        "#B07AA1",
-        "#FF9DA7",
-        "#9C755F",
-        "#BAB0AC",
-    ]
-    return [palette[index % len(palette)] for index in range(len(rows))]
-
-
 def report(
     facts: Sequence[RequestFact],
     dimensions: Sequence[Dimension],
     *,
     top_n: int = DEFAULT_TOP_N,
-    kind: ChartKind = ChartKind.BARS,
 ) -> StatisticsReport:
     """Headline plus one figure per dimension; dimensions without data omit
-    their section entirely. ``kind`` selects the encoding."""
+    their section entirely."""
     charts: list[ChartSpec] = []
     for dimension in dimensions:
         grouping = group_by(facts, dimension, top_n=top_n)
@@ -267,7 +175,7 @@ def report(
                     for measure in grouping.measures
                 ),
                 rows=grouping.rows,
-                figure=build_figure(grouping, kind),
+                figure=build_figure(grouping),
             )
         )
     return StatisticsReport(headline=_headline(facts), charts=tuple(charts))

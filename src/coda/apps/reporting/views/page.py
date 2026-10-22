@@ -15,7 +15,7 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, QueryDict
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -39,7 +39,6 @@ from coda.apps.reporting.treemap import institution_treemap
 from coda.contexts.statistics import charts
 from coda.contexts.statistics.dimensions import DIMENSIONS
 from coda.contexts.statistics.dto import (
-    ChartKind,
     ChartSpec,
     GroupRow,
     Measure,
@@ -159,13 +158,6 @@ def _prior_period(start: date, end: date) -> tuple[date, date]:
     return start - timedelta(days=length), start - timedelta(days=1)
 
 
-def _tab_query(request: HttpRequest) -> str:
-    """The page query minus its tab param — nav links append their own."""
-    params = request.GET.copy()
-    params.pop("tab", None)
-    return params.urlencode()
-
-
 def reporting_context(request: HttpRequest) -> dict[str, Any]:
     """The whole page context: filtered facts -> report -> sections, plus the
     shared rail's form/chips state."""
@@ -177,10 +169,6 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     )
     criteria, _sort_order = filter_form.search_criteria()
     facts = build_facts(queries.fetch_requests(criteria), GlobalPreferences.get_home_currency())
-    try:
-        kind = ChartKind(request.GET.get("chart", ChartKind.BARS))
-    except ValueError:
-        kind = ChartKind.BARS
     compare = request.GET.get("compare") == "1" and filter_form.cleaned_data.get("date_range")
     tab = request.GET.get("tab", "overview")
     if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
@@ -193,8 +181,8 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         comparison_facts = build_facts(
             queries.fetch_requests(comparison_criteria), GlobalPreferences.get_home_currency()
         )
-    comparison_report = charts.report(comparison_facts, DIMENSIONS, kind=kind) if compare else None
-    report = charts.report(facts, DIMENSIONS, kind=kind)
+    comparison_report = charts.report(comparison_facts, DIMENSIONS) if compare else None
+    report = charts.report(facts, DIMENSIONS)
 
     date_errors = filter_form.errors.get("date_range")
     summary = build_filter_summary(
@@ -231,11 +219,6 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "filter_clear_url": reverse(_PAGE_URL),
         "filter_list_id": _REGION_ELEMENT_ID,
         "list_view_url": list_view_url(request),
-        "chart_kind": kind,
-        "chart_kinds": list(ChartKind),
-        "chart_switch_urls": {
-            candidate: _chart_switch_url(request, candidate) for candidate in ChartKind
-        },
         "headline": (
             replace(report.headline, comparison=comparison_report.headline)
             if comparison_report
@@ -246,11 +229,6 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "comparison": comparison_report,
         "compare": bool(comparison_report),
         "tab": tab,
-        # The nav links append their tab to the query; the page's own tab
-        # param must not be in the copied params or it duplicates (first
-        # value wins server-side, pinning every tab to the current one).
-        "tab_query": _tab_query(request),
-        "tab_region_url": reverse(_REGION_URL),
         "incomplete_invoices": _incomplete_invoices(facts),
         # The full group list drives the tab nav; the active tab filters the
         # rendered sections only.
@@ -266,13 +244,6 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         "active_group": tab,
         "sections": all_sections,
     }
-
-
-def _chart_switch_url(request: HttpRequest, kind: ChartKind) -> str:
-    """The page URL with only the chart param swapped — filters preserved."""
-    params: QueryDict = request.GET.copy()
-    params["chart"] = kind
-    return build_url(_PAGE_URL, params)
 
 
 def _default_period_url(request: HttpRequest) -> str:
