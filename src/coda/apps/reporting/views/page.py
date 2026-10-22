@@ -30,7 +30,12 @@ from coda.apps.fundingrequests.forms import (
 from coda.apps.fundingrequests.models import Label
 from coda.apps.institutions.models import Institution
 from coda.apps.invoices.models import Invoice
-from coda.apps.listfilters import ListRegionMixin, build_filter_summary, build_url
+from coda.apps.listfilters import (
+    ListRegionMixin,
+    build_filter_summary,
+    build_url,
+    params_without,
+)
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.reporting import queries
 from coda.apps.reporting.dataset import build_facts
@@ -181,18 +186,13 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     home_currency = GlobalPreferences.get_home_currency()
     facts = build_facts(queries.fetch_requests(criteria), home_currency)
     compare = request.GET.get("compare") == "1" and filter_form.cleaned_data.get("date_range")
-    # Last value wins: the tab buttons are submit buttons of the band form,
-    # and the form encoding appends the clicked button's name/value pair
-    # after the hidden fallback input's value.
-    tab_values = request.GET.getlist("tab")
-    tab = tab_values[-1] if tab_values else "overview"
+    # QueryDict.get returns the LAST value of a repeated key — exactly the
+    # submitter-wins semantics the tab/resolution submit buttons rely on.
+    tab = request.GET.get("tab", "overview")
     if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
         tab = "overview"
-    # Last value wins, same as tab: the resolution buttons are submit
-    # buttons of the band form appending their value after the fallback.
-    resolution_values = request.GET.getlist("resolution")
     try:
-        resolution = TemporalResolution(resolution_values[-1] if resolution_values else "weekly")
+        resolution = TemporalResolution(request.GET.get("resolution", "weekly"))
     except ValueError:
         resolution = TemporalResolution.WEEKLY
     comparison_facts: tuple[RequestFact, ...] = ()
@@ -203,9 +203,7 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         compare_period = _prior_period(date_range.start, date_range.end)
     if compare and compare_period:
         comparison_criteria = filter_form.search_criteria(date_override=compare_period)[0]
-        comparison_facts = build_facts(
-            queries.fetch_requests(comparison_criteria), home_currency
-        )
+        comparison_facts = build_facts(queries.fetch_requests(comparison_criteria), home_currency)
     comparison_report = charts.report(comparison_facts, DIMENSIONS) if compare else None
     report = charts.report(facts, DIMENSIONS)
 
@@ -288,8 +286,7 @@ def _default_period_url(request: HttpRequest) -> str:
     """Same URL, current calendar year as the period (§8.5): the redirect makes
     the effective period visible in the URL and in every drill-down link."""
     year = timezone.localdate().year
-    params = request.GET.copy()
-    params.pop("page", None)
+    params = params_without(request.GET, "page")
     params["start_date"] = date(year, 1, 1).isoformat()
     params["end_date"] = date(year, 12, 31).isoformat()
     return build_url(_PAGE_URL, params)

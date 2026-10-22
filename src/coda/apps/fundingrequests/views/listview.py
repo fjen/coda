@@ -15,7 +15,7 @@ from coda.apps.fundingrequests.forms import FundingRequestListFilterForm
 from coda.apps.fundingrequests.models import Label
 from coda.apps.fundingrequests.queries import list as list_query
 from coda.apps.fundingrequests.queries.models import FundingRequestListItem
-from coda.apps.listfilters import ListRegionMixin, build_filter_summary
+from coda.apps.listfilters import ListRegionMixin, build_filter_summary, params_without
 from coda.apps.views import EntityListView
 
 
@@ -109,9 +109,7 @@ class LabelPill:
 
 
 def _pill_url(request: HttpRequest, url_name: str, *, labels: set[int]) -> str:
-    params = request.GET.copy()
-    params.pop("labels", None)
-    params.pop("page", None)
+    params = params_without(request.GET, "labels", "page")
     if labels:
         params.setlist("labels", [str(x) for x in sorted(labels)])
     return reverse(url_name, query=params or None)
@@ -150,4 +148,3 @@ def build_label_pills(
         )
         for label in labels
     ]
-

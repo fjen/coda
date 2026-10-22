@@ -1,4 +1,4 @@
-{% load getitem mathfilters %}
+{% load mathfilters %}
 {% for entry in groups %}
     {% if active_group == 'groups' or entry.group.id == active_group %}
     <section class="statistics-group" id="group-{{ entry.group.id }}">

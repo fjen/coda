@@ -249,6 +249,16 @@ def build_url(url_name: str, params: QueryDict) -> str:
     return reverse(url_name, query=params or None)
 
 
+def params_without(params: QueryDict, *keys: str) -> QueryDict:
+    """A copy of ``params`` without the given keys. The pagination ``page``
+    param is never a filter — every filter URL derived from the request
+    starts here."""
+    copy = params.copy()
+    for key in keys:
+        copy.pop(key, None)
+    return copy
+
+
 def remove_value_url(request: HttpRequest, url_name: str, *, key: str, value: str | None) -> str:
     """List URL without one value of ``key``; other params preserved, ``page`` dropped.
 
@@ -256,8 +266,7 @@ def remove_value_url(request: HttpRequest, url_name: str, *, key: str, value: st
     keys one occurrence is dropped and the remaining order preserved; an emptied
     key is omitted entirely.
     """
-    params = request.GET.copy()
-    params.pop("page", None)
+    params = params_without(request.GET, "page")
     if value is None:
         params.pop(key, None)
         return build_url(url_name, params)

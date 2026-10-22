@@ -19,13 +19,13 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
-from django.http import HttpRequest, QueryDict
+from django.http import HttpRequest
 
 from coda.apps.fundingrequests.models import FundingOrganization
 from coda.apps.institutions.models import Institution
 from coda.apps.invoices.models import FundingSource
 from coda.apps.journals.models import Journal
-from coda.apps.listfilters import build_url
+from coda.apps.listfilters import build_url, params_without
 from coda.apps.preferences.models import GlobalPreferences, PreloadedVocabularyProvider
 from coda.apps.publishers.models import Publisher
 from coda.contexts.statistics.dto import ContractRef, GroupRow
@@ -118,8 +118,7 @@ class DrilldownLinks:
         )
 
     def _url(self, filters: Mapping[str, tuple[list[str], bool]]) -> str:
-        params: QueryDict = self.request.GET.copy()
-        params.pop("page", None)
+        params = params_without(self.request.GET, "page")
         for key, (values, multi) in filters.items():
             if multi:
                 existing = params.getlist(key)
@@ -138,10 +137,7 @@ def list_view_url(request: HttpRequest) -> str:
     """The funding-request list with the page's whole filter set (§2 #7):
     the one bridge from the statistics page into the data behind it. The
     statistics page's own ``tab`` is not a list filter."""
-    params: QueryDict = request.GET.copy()
-    params.pop("page", None)
-    params.pop("tab", None)
-    return build_url(_LIST_URL, params)
+    return build_url(_LIST_URL, params_without(request.GET, "page", "tab"))
 
 
 def _lookup_tables(vocabularies: PreloadedVocabularyProvider) -> dict[str, dict[str, list[str]]]:
