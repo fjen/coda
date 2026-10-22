@@ -236,6 +236,14 @@ headline cards above them; this class only keeps the anchor id addressable. */
     );
 }
 
+.statistics-values .headline-delta {
+    /* Own line, right-aligned: the main numbers keep a clean right edge;
+       the deltas form their own sub-column underneath. */
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 400;
+}
+
 .headline-delta {
     font-size: 0.9rem;
     font-weight: 400;
