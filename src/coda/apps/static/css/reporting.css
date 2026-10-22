@@ -62,6 +62,11 @@ headline cards above them; this class only keeps the anchor id addressable. */
     border-bottom: 1px solid #ddd;
 }
 
+.statistics-values .statistics-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 .statistics-values thead th {
     cursor: pointer;
     user-select: none;
@@ -222,8 +227,10 @@ headline cards above them; this class only keeps the anchor id addressable. */
     display: block;
     height: 3px;
     margin-top: 2px;
+    /* Anchored right: the number column is right-aligned, so the bar grows
+       leftward from the value it visualizes. */
     background: linear-gradient(
-        to right,
+        to left,
         var(--coda-primary, #0072b2) calc(var(--share, 0) * 0.1%),
         transparent calc(var(--share, 0) * 0.1%)
     );
