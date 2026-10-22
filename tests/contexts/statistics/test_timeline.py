@@ -24,13 +24,15 @@ def test__timeline__comparison_stacks_two_panels() -> None:
 
     figure = timeline_figure(current, previous)
 
-    # Previous panel on top (y2), current below (y); each keeps its own weeks.
+    # Previous panel on top (x2/y2), current below (x/y) — both axes bound.
     previous_trace, current_trace = figure["data"]
     assert previous_trace["yaxis"] == "y2"
+    assert previous_trace["xaxis"] == "x2"
     assert previous_trace["x"] == ["2026-01-05"]
     assert previous_trace["y"] == [3]
     assert previous_trace["marker"]["color"] == "#0072B266"  # muted current hue
     assert current_trace["yaxis"] == "y"
+    assert current_trace["xaxis"] == "x"
     assert current_trace["x"] == ["2026-04-27"]
     assert current_trace["y"] == [1]
     # Shared scale, two domains, each panel labels its own weeks.

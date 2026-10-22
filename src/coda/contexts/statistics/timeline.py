@@ -73,16 +73,20 @@ def timeline_figure(
         *,
         color: str,
         name: str,
-        yaxis: str,
+        axis_suffix: str,
         hover_suffix: str,
     ) -> dict[str, object]:
+        # A trace must bind BOTH axes explicitly: without xaxis the trace
+        # plots against the default x axis, which would merge the two
+        # panels' week categories into one axis.
         return {
             "type": "bar",
             "x": [point.week_start.isoformat() for point in period_points],
             "y": [point.count for point in period_points],
             "name": name,
             "marker": {"color": color},
-            "yaxis": yaxis,
+            "xaxis": f"x{axis_suffix}",
+            "yaxis": f"y{axis_suffix}",
             "hovertemplate": f"week of %{{x}}: %{{y}} request(s)<extra>{hover_suffix}</extra>",
             "showlegend": False,
         }
@@ -99,10 +103,10 @@ def timeline_figure(
                 comparison,
                 color="#0072B266",
                 name="previous period",
-                yaxis="y2",
+                axis_suffix="2",
                 hover_suffix="previous period",
             ),
-            _trace(points, color="#0072B2", name="current period", yaxis="y", hover_suffix=""),
+            _trace(points, color="#0072B2", name="current period", axis_suffix="", hover_suffix=""),
         ]
         layout = {
             "height": 340,
@@ -163,7 +167,9 @@ def timeline_figure(
             ],
         }
     else:
-        data = [_trace(points, color="#0072B2", name="current period", yaxis="y", hover_suffix="")]
+        data = [
+            _trace(points, color="#0072B2", name="current period", axis_suffix="", hover_suffix="")
+        ]
         layout = {
             "height": 180,
             "margin": {"l": 40, "r": 10, "t": 10, "b": 30},
