@@ -74,6 +74,12 @@ if (document.readyState === "loading") {
 const SORTABLE_TABLE = "table.statistics-values";
 
 const cellValue = (cell) => {
+    // Value cells annotate their number with a delta span; the raw sort key
+    // rides in data-sort so the annotation never pollutes the comparison.
+    if (cell.dataset?.sort !== undefined && cell.dataset.sort !== "") {
+        const explicit = Number(cell.dataset.sort);
+        return Number.isNaN(explicit) ? cell.dataset.sort : explicit;
+    }
     const text = (cell.textContent || "").replace(/\s+/g, " ").trim();
     if (text === "—" || text === "") {
         return 0; // paid out nothing sorts as zero

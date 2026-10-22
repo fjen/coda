@@ -72,11 +72,11 @@ class DimensionRow:
     comparison_publications: int | None = None
     comparison_amount: Decimal | None = None
     #: Signed percentage change vs the comparison period, relative to the
-    #: comparison value (e.g. 25 means +25%). Spend-based when the row has
-    #: amounts on both sides, publications otherwise; None when the
-    #: comparison value is zero/absent (the row renders "new") or compare
-    #: is off.
-    delta_percent: Decimal | None = None
+    #: comparison value (e.g. 25 means +25%) — per measure, so each value
+    #: cell annotates its own number. None when the comparison value is
+    #: zero/absent (the cell renders "new") or compare is off.
+    delta_publications_percent: Decimal | None = None
+    delta_amount_percent: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -302,11 +302,12 @@ def _dimension_row(row: GroupRow, comparison: GroupRow | None, link: str | None)
     """
     comparison_publications = comparison.publications if comparison else 0
     comparison_amount = comparison.amount if comparison else None
-    delta: Decimal | None = None
+    delta_publications: Decimal | None = None
+    delta_amount: Decimal | None = None
     if row.amount is not None and comparison_amount:
-        delta = (row.amount - comparison_amount) / comparison_amount * 100
-    elif comparison_publications:
-        delta = (
+        delta_amount = (row.amount - comparison_amount) / comparison_amount * 100
+    if comparison_publications:
+        delta_publications = (
             (Decimal(row.publications) - comparison_publications)
             / Decimal(comparison_publications)
             * 100
@@ -319,7 +320,8 @@ def _dimension_row(row: GroupRow, comparison: GroupRow | None, link: str | None)
         is_other=row.is_other,
         comparison_publications=comparison_publications,
         comparison_amount=comparison_amount,
-        delta_percent=delta,
+        delta_publications_percent=delta_publications,
+        delta_amount_percent=delta_amount,
     )
 
 
