@@ -26,12 +26,12 @@ headline cards above them; this class only keeps the anchor id addressable. */
     margin-bottom: var(--pico-spacing, 1rem);
 }
 
-/* The timeline card's header: title left, resolution switch right. */
-#statistics-timeline header {
+/* The timeline card's resolution switch: a quiet centered row under the
+   chart. */
+#statistics-timeline .statistics-resolution {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: center;
+    margin-top: 0.25rem;
 }
 
 .statistics-chart {
