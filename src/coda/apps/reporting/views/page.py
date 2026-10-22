@@ -170,7 +170,11 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     criteria, _sort_order = filter_form.search_criteria()
     facts = build_facts(queries.fetch_requests(criteria), GlobalPreferences.get_home_currency())
     compare = request.GET.get("compare") == "1" and filter_form.cleaned_data.get("date_range")
-    tab = request.GET.get("tab", "overview")
+    # Last value wins: the tab buttons are submit buttons of the band form,
+    # and the form encoding appends the clicked button's name/value pair
+    # after the hidden fallback input's value.
+    tab_values = request.GET.getlist("tab")
+    tab = tab_values[-1] if tab_values else "overview"
     if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
         tab = "overview"
     comparison_facts: tuple[RequestFact, ...] = ()

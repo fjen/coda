@@ -62,24 +62,11 @@ document.addEventListener("htmx:beforeSwap", (event) => {
     }
 });
 
-// The tab nav: buttons set the band form's hidden `tab` input and trigger
-// the form's region request — the tab is form state like every filter, so
-// filter changes never drop it, and the region response re-renders the nav
-// out of band with the server-owned aria-current.
-document.addEventListener("click", (event) => {
-    const button = event.target instanceof Element
-        ? event.target.closest(".statistics-groups [role='group'] button[data-tab]")
-        : null;
-    if (!button) {
-        return;
-    }
-    const hidden = document.querySelector("#filter-toolbar-form input[name='tab']");
-    if (!hidden) {
-        return;
-    }
-    hidden.value = button.dataset.tab ?? "";
-    window.htmx?.trigger("#filter-toolbar-form", "submit");
-});
+// The tab nav needs no JS: the tab buttons are submit buttons of the band
+// form (form="filter-toolbar-form"), so the browser serializes the clicked
+// button's name/value pair into the request — the view's last-value read
+// makes the click win over the hidden fallback input. The region response
+// re-renders the nav out of band with the server-owned aria-current.
 
 document.addEventListener("htmx:afterSettle", (event) => {
     renderCharts(event.target);

@@ -21,7 +21,16 @@
               hx-include="#filter-sidebar-form, #filter-toolbar-form"
               hx-indicator="#reporting-region-loading"
               hx-trigger="submit, change from:#filter-sidebar-form, input delay:300ms from:.filter-search, change[!event.target.matches('.filter-search') || event.target.dataset.lastInputValue !== event.target.value]">
-            <input type="hidden" name="tab" value="{{ tab }}">
+            {% comment %}
+                Default submit button: without it, pressing Enter in the search
+                box would implicitly click the first tab submit button and
+                reset the tab. The hidden tab input is the fallback value; a
+                tab button's own name/value pair is appended LAST to the
+                serialized fields, so the view's last-value read makes the
+                click win.
+            {% endcomment %}
+            <button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
+            <input type="hidden" name="tab" id="statistics-tab-value" value="{{ tab }}">
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
             {% include "partials/filter_period.html" %}
         </form>

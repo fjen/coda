@@ -18,4 +18,9 @@
 <div hx-swap-oob="innerHTML:#statistics-groups">
     {% include "reporting/partials/statistics_tab_nav.html" %}
 </div>
+{% comment %}
+    The band form's hidden tab fallback must track the server-owned tab, or an
+    implicit submit (Enter in the search box) resets it.
+{% endcomment %}
+<input type="hidden" name="tab" id="statistics-tab-value" value="{{ tab }}" hx-swap-oob="true">
 {% include "reporting/partials/reporting_content.html" %}
