@@ -26,6 +26,14 @@ headline cards above them; this class only keeps the anchor id addressable. */
     margin-bottom: var(--pico-spacing, 1rem);
 }
 
+/* The timeline card's header: title left, resolution switch right. */
+#statistics-timeline header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
 .statistics-chart {
     max-width: 100%;
 }
@@ -149,6 +157,27 @@ headline cards above them; this class only keeps the anchor id addressable. */
 .statistics-groups [role="group"] a[role="button"][aria-current="true"] {
     /* Pico's aria-current styling on group buttons is subtle; make the
        active group unmistakable. */
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Timeline resolution switch: inline buttons beside the period fields, same
+   selected-state idiom as the tab group. */
+.statistics-resolution {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.statistics-resolution button {
+    margin: 0;
+    padding: 0.125rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: var(--coda-border-radius);
+}
+
+.statistics-resolution button[aria-current="true"] {
     font-weight: 700;
     text-decoration: underline;
     text-underline-offset: 3px;

@@ -49,9 +49,10 @@
 {% if timeline.data %}
     <article class="statistics-section" id="statistics-timeline">
         <header>
-            <h3 class="my-0">Requests per week
+            <h3 class="my-0">Requests per {{ resolution.value }}
                 <small class="statistics-section-meta">by request date</small>
             </h3>
+            {% include "reporting/partials/statistics_resolution.html" %}
         </header>
         {{ timeline|json_script:"chart-timeline" }}
         <div class="statistics-chart statistics-timeline"

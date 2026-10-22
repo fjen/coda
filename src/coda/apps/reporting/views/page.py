@@ -45,7 +45,11 @@ from coda.contexts.statistics.dto import (
     RequestFact,
     StatisticsReport,
 )
-from coda.contexts.statistics.timeline import timeline_figure, weekly_counts
+from coda.contexts.statistics.timeline import (
+    TemporalResolution,
+    temporal_counts,
+    timeline_figure,
+)
 
 _PAGE_URL = "reporting:stats_fundingrequests"
 _REGION_URL = "reporting:stats_fundingrequests_region"
@@ -181,6 +185,13 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     tab = tab_values[-1] if tab_values else "overview"
     if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
         tab = "overview"
+    # Last value wins, same as tab: the resolution buttons are submit
+    # buttons of the band form appending their value after the fallback.
+    resolution_values = request.GET.getlist("resolution")
+    try:
+        resolution = TemporalResolution(resolution_values[-1] if resolution_values else "weekly")
+    except ValueError:
+        resolution = TemporalResolution.WEEKLY
     comparison_facts: tuple[RequestFact, ...] = ()
     # The switch label names the prior window even when unchecked — the user
     # should see what "compare" would cover for the current date range.
@@ -242,9 +253,12 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         ),
         "headline_comparison": comparison_report.headline if comparison_report else None,
         "timeline": timeline_figure(
-            weekly_counts(facts),
-            weekly_counts(comparison_facts) if comparison_facts else None,
+            temporal_counts(facts, resolution),
+            temporal_counts(comparison_facts, resolution) if comparison_facts else None,
+            resolution=resolution,
         ),
+        "resolution": resolution,
+        "resolutions": list(TemporalResolution),
         "comparison": comparison_report,
         "compare": bool(comparison_report),
         # The switch label names the actual prior window, not a vague "previous".

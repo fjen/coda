@@ -31,6 +31,7 @@
             {% endcomment %}
             <button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
             <input type="hidden" name="tab" id="statistics-tab-value" value="{{ tab }}">
+            <input type="hidden" name="resolution" id="statistics-resolution-value" value="{{ resolution }}">
             {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
             {% include "partials/filter_period.html" %}
         </form>

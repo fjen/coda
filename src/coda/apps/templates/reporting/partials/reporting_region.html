@@ -23,6 +23,12 @@
     implicit submit (Enter in the search box) resets it.
 {% endcomment %}
 <input type="hidden" name="tab" id="statistics-tab-value" value="{{ tab }}" hx-swap-oob="true">
+<input type="hidden" name="resolution" id="statistics-resolution-value" value="{{ resolution }}" hx-swap-oob="true">
+{% comment %}
+    The resolution control lives in the timeline card header (inside the
+    swapped region), so the region swap re-renders it with the fresh
+    aria-current — only the hidden fallback input needs the OOB update.
+{% endcomment %}
 {% comment %}
     The band's chip row sits outside the swapped region; the response renders
     it out of band from the same server-owned chip state as the rail's copy.
