@@ -34,7 +34,7 @@
     The period block lives in the band too; re-render it so the compare
     switch's label tracks an edited date range.
 {% endcomment %}
-<div hx-swap-oob="innerHTML:#filter-period">
+<div hx-swap-oob="outerHTML:#filter-period">
     {% include "partials/filter_period.html" %}
 </div>
 {% include "reporting/partials/reporting_content.html" %}

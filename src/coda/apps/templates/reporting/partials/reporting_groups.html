@@ -2,7 +2,6 @@
 {% for entry in groups %}
     {% if active_group == 'groups' or entry.group.id == active_group %}
     <section class="statistics-group" id="group-{{ entry.group.id }}">
-        <h2 class="statistics-group-title">{{ entry.group.label }}</h2>
         {% if entry.treemap %}
             <article class="statistics-section" id="statistics-institution-hierarchy">
                 <header>

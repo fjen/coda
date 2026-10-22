@@ -23,6 +23,6 @@
                value="1"
                role="switch"
                {% if compare %}checked{% endif %}>
-        Compare with previous period{% if compare_period %}: {{ compare_period.0|date:"Y-m-d" }} – {{ compare_period.1|date:"Y-m-d" }}{% endif %}
+        Compare with previous period{% if compare_period %}:<br> {{ compare_period.0|date:"Y-m-d" }} – {{ compare_period.1|date:"Y-m-d" }}{% endif %}
     </label>
 </div>
