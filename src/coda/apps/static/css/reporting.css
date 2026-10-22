@@ -104,6 +104,12 @@ headline cards above them; this class only keeps the anchor id addressable. */
 .filter-period label {
     font-size: 0.85rem;
     white-space: nowrap;
+    line-height: 1.2rem;
+    margin-bottom: 0;
+}
+
+.filter-period input {
+    margin-bottom: 0;
 }
 
 /* Comparison switch (2.8): a Pico role=switch checkbox in the toolbar band;
