@@ -176,7 +176,10 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         request.GET, contracts=contracts, labels=labels, vocabularies=vocabularies
     )
     criteria, _sort_order = filter_form.search_criteria()
-    facts = build_facts(queries.fetch_requests(criteria), GlobalPreferences.get_home_currency())
+    # The home currency is page-wide (both periods convert into it); one
+    # lookup serves both build_facts calls.
+    home_currency = GlobalPreferences.get_home_currency()
+    facts = build_facts(queries.fetch_requests(criteria), home_currency)
     compare = request.GET.get("compare") == "1" and filter_form.cleaned_data.get("date_range")
     # Last value wins: the tab buttons are submit buttons of the band form,
     # and the form encoding appends the clicked button's name/value pair
@@ -201,7 +204,7 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     if compare and compare_period:
         comparison_criteria = filter_form.search_criteria(date_override=compare_period)[0]
         comparison_facts = build_facts(
-            queries.fetch_requests(comparison_criteria), GlobalPreferences.get_home_currency()
+            queries.fetch_requests(comparison_criteria), home_currency
         )
     comparison_report = charts.report(comparison_facts, DIMENSIONS) if compare else None
     report = charts.report(facts, DIMENSIONS)
