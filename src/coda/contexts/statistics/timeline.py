@@ -59,117 +59,85 @@ def timeline_figure(
     Mondays) so nothing interpolates between weeks; the bar count scales the
     figure height like the other figures do.
 
-    With ``comparison`` (the prior period's weekly counts), the figure
-    becomes two stacked panels sharing the week axis: the previous period's
-    weeks on top (muted — the charts module's washed-out convention), the
-    current period's below (full hue). Each panel owns its own stretch of
-    weeks, so the axis never stretches to cover a year of empty columns.
+    With ``comparison`` (the prior period's weekly counts), the axis extends
+    over the union of both periods' weeks in one chart: the previous period
+    renders muted (the charts module's washed-out convention) over its own
+    weeks, the current period in full hue over its weeks. The two periods'
+    weeks never overlap (the prior window ends before the current one
+    starts), so every category carries exactly one bar; the legend names
+    the two series.
     """
     if not points:
         return {"data": [], "layout": {"height": 160}, "config": {"responsive": True}}
-
-    def _trace(
-        period_points: Sequence[TimelinePoint],
-        *,
-        color: str,
-        name: str,
-        axis_suffix: str,
-        hover_suffix: str,
-    ) -> dict[str, object]:
-        # A trace must bind BOTH axes explicitly: without xaxis the trace
-        # plots against the default x axis, which would merge the two
-        # panels' week categories into one axis.
-        return {
-            "type": "bar",
-            "x": [point.week_start.isoformat() for point in period_points],
-            "y": [point.count for point in period_points],
-            "name": name,
-            "marker": {"color": color},
-            "xaxis": f"x{axis_suffix}",
-            "yaxis": f"y{axis_suffix}",
-            "hovertemplate": f"week of %{{x}}: %{{y}} request(s)<extra>{hover_suffix}</extra>",
-            "showlegend": False,
-        }
-
-    max_count = max(point.count for point in points)
     if comparison:
-        comparison_max = max((p.count for p in comparison), default=0)
-        max_count = max(max_count, comparison_max)
-        # Two independent stacked panels: previous on top (its own x/y2),
-        # current below (its own x/y) — no axis sharing, each panel's week
-        # labels render under it. Panel annotations name the periods.
-        data = [
-            _trace(
-                comparison,
-                color="#0072B266",
-                name="previous period",
-                axis_suffix="2",
-                hover_suffix="previous period",
-            ),
-            _trace(points, color="#0072B2", name="current period", axis_suffix="", hover_suffix=""),
+        weeks = sorted({p.week_start for p in points} | {p.week_start for p in comparison})
+        x = [week.isoformat() for week in weeks]
+        current_by_week = {p.week_start: p.count for p in points}
+        comparison_by_week = {p.week_start: p.count for p in comparison}
+        max_count = max(
+            max(p.count for p in points),
+            max((p.count for p in comparison), default=0),
+        )
+        data: list[dict[str, object]] = [
+            {
+                "type": "bar",
+                "x": x,
+                "y": [comparison_by_week.get(week, 0) for week in weeks],
+                "name": "previous period",
+                "marker": {"color": "#0072B266"},
+                "hovertemplate": "week of %{x}: %{y} request(s)<extra>previous period</extra>",
+                "showlegend": True,
+            },
+            {
+                "type": "bar",
+                "x": x,
+                "y": [current_by_week.get(week, 0) for week in weeks],
+                "name": "current period",
+                "marker": {"color": "#0072B2"},
+                "hovertemplate": "week of %{x}: %{y} request(s)<extra></extra>",
+                "showlegend": True,
+            },
         ]
         layout = {
-            "height": 340,
-            "margin": {"l": 40, "r": 10, "t": 30, "b": 30},
+            "height": 200,
+            "margin": {"l": 40, "r": 10, "t": 34, "b": 30},
             "xaxis": {
                 "type": "category",
                 "tickangle": -45,
                 "automargin": True,
                 "tickformat": "%d.%m.",
-                "nticks": min(len(points), 26),
-                "anchor": "y",
-                "domain": [0.0, 1.0],
-            },
-            "xaxis2": {
-                "type": "category",
-                "tickangle": -45,
-                "automargin": True,
-                "tickformat": "%d.%m.",
-                "nticks": min(len(comparison), 26),
-                "anchor": "y2",
+                "nticks": min(len(weeks), 26),
             },
             "yaxis": {
                 "title": {"text": "requests / week"},
-                "domain": [0.0, 0.42],
-                "rangemode": "nonnegative",
-                "range": [0, max_count * 1.15] if max_count else [0, 1],
-            },
-            "yaxis2": {
-                "domain": [0.58, 1.0],
                 "rangemode": "nonnegative",
                 "range": [0, max_count * 1.15] if max_count else [0, 1],
             },
             "bargap": 0.15,
-            "showlegend": False,
-            "annotations": [
-                {
-                    "text": "previous period",
-                    "x": 0.0,
-                    "xref": "paper",
-                    "y": 1.0,
-                    "yref": "paper",
-                    "yanchor": "bottom",
-                    "xanchor": "left",
-                    "showarrow": False,
-                    "font": {"size": 12},
-                },
-                {
-                    "text": "current period",
-                    "x": 0.0,
-                    "xref": "paper",
-                    "y": 0.42,
-                    "yref": "paper",
-                    "yanchor": "bottom",
-                    "xanchor": "left",
-                    "showarrow": False,
-                    "font": {"size": 12},
-                },
-            ],
+            # Legend above the plot area, right-aligned into the free side.
+            "showlegend": True,
+            "legend": {
+                "orientation": "h",
+                "xanchor": "right",
+                "x": 1.0,
+                "yanchor": "bottom",
+                "y": 1.0,
+                "font": {"size": 11},
+            },
         }
     else:
         data = [
-            _trace(points, color="#0072B2", name="current period", axis_suffix="", hover_suffix="")
+            {
+                "type": "bar",
+                "x": [point.week_start.isoformat() for point in points],
+                "y": [point.count for point in points],
+                "name": "current period",
+                "marker": {"color": "#0072B2"},
+                "hovertemplate": "week of %{x}: %{y} request(s)<extra></extra>",
+                "showlegend": False,
+            }
         ]
+        max_count = max(point.count for point in points)
         layout = {
             "height": 180,
             "margin": {"l": 40, "r": 10, "t": 10, "b": 30},
