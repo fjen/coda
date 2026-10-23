@@ -158,7 +158,10 @@ class ReportingRegionView(ListRegionMixin, TemplateView):
         return super().get_context_data(**kwargs) | reporting_context(self.request)
 
 
-reporting_region = ReportingRegionView.as_view()
+if not settings.DEBUG:
+    reporting_region = login_required(ReportingRegionView.as_view())
+else:
+    reporting_region = ReportingRegionView.as_view()
 
 
 def _prior_period(start: date, end: date) -> tuple[date, date] | None:
