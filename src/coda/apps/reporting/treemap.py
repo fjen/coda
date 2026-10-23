@@ -129,7 +129,7 @@ def institution_treemap(
         "layout": {
             "title": {"text": _title(), "x": 0.01, "xanchor": "left"},
             # Two-line title needs real headroom or it sits on the tiles.
-            "margin": {"l": 10, "r": 10, "t": 64, "b": 10},
+            "margin": {"l": 10, "r": 10, "t": 90, "b": 10},
         },
         "config": {"responsive": True},
     }
@@ -153,6 +153,6 @@ def subtree_pks_of_all(
 
 def _title() -> str:
     return (
-        "Institution hierarchy — publications (area), spend incl. tax (colour).<br>"
+        "Institution hierarchy: publications (area), spend incl. tax (colour).<br>"
         "A request counts in full under every affiliation: subtrees can overlap."
     )
