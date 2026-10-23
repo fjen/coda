@@ -9,14 +9,18 @@ from faker.providers import lorem
 
 from coda.apps.authors.models import Author
 from coda.apps.fundingrequests import repository
-from coda.apps.fundingrequests.models import FundingOrganization, FundingRequest as FundingRequestModel
+from coda.apps.fundingrequests.models import (
+    FundingOrganization,
+)
+from coda.apps.fundingrequests.models import (
+    FundingRequest as FundingRequestModel,
+)
 from coda.apps.institutions.models import Institution
 from coda.apps.journals.models import Journal
 from coda.apps.preferences.models import GlobalPreferences
 from coda.apps.publications.models import LinkType
 from coda.apps.publishers.models import Publisher
 from coda.domain.author import AuthorNames, Role
-from coda.domain.fundingrequest import Review
 from coda.domain.fundingrequest import (
     ExternalFunding,
     FilledContact,
@@ -25,6 +29,7 @@ from coda.domain.fundingrequest import (
     FundingRequestContact,
     Payment,
     PaymentMethod,
+    Review,
 )
 from coda.domain.fundingrequest.review import ReviewResult
 from coda.domain.money import Currency, Money
@@ -107,6 +112,7 @@ class Command(BaseCommand):
 
         request.id = repository.create(request)
 
+        assert request.publication.id is not None  # just created
         self.attach_corresponding_author(request.publication.id)
         review = Review(
             request.id,
