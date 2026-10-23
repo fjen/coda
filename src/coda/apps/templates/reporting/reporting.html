@@ -19,6 +19,7 @@
               hx-target="#reporting-region"
               hx-swap="innerHTML"
               hx-include="#filter-sidebar-form, #filter-toolbar-form"
+              hx-sync="this:replace"
               hx-indicator="#reporting-region-loading"
               hx-trigger="submit, change from:#filter-sidebar-form, input delay:300ms from:.filter-search, change[!event.target.matches('.filter-search') || event.target.dataset.lastInputValue !== event.target.value]">
             {% comment %}

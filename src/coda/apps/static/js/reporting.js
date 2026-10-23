@@ -27,26 +27,11 @@ const renderCharts = (root) => {
 // response (reporting_region.html swaps #statistics-active-filters) — no
 // client-side copy step.
 
-// The region can accumulate overlapping requests when a second filter
-// change fires while the first is still in flight (two quick date edits).
-// Responses may then land out of order and the chips render the stale
-// request's state. htmx 2 has no public abort; drop stale responses
-// instead: each request carries its issue order, and a settle from an
-// older request than the last issued one is ignored.
-let _regionRequestSeq = 0;
-document.addEventListener("htmx:beforeRequest", (event) => {
-    if (event.target.id === "reporting-region") {
-        event.detail.xhr._regionSeq = ++_regionRequestSeq;
-    }
-});
-document.addEventListener("htmx:beforeSwap", (event) => {
-    if (event.target.id === "reporting-region") {
-        const issued = Number(event.detail.xhr?._regionSeq ?? 0);
-        if (issued < _regionRequestSeq) {
-            event.detail.shouldSwap = false;
-        }
-    }
-});
+// Out-of-order region responses are htmx's job now: the band form carries
+// hx-sync="this:replace" — a new request aborts the in-flight one, so the
+// last-issued request's state is always what renders. The old hand-rolled
+// sequence guard lived here; it never fired (its beforeRequest matcher
+// tested the swap target, but the event targets the requesting element).
 
 // The tab nav needs no JS: the tab buttons are submit buttons of the band
 // form (form="filter-toolbar-form"), so the browser serializes the clicked

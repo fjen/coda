@@ -6,7 +6,6 @@ from coda.contexts.statistics.timeline import (
     TemporalResolution,
     temporal_counts,
     timeline_figure,
-    weekly_counts,
 )
 
 
@@ -69,11 +68,6 @@ def test__temporal_counts__zero_fills_gap_buckets() -> None:
 
 def test__temporal_counts__empty_facts_yields_no_points() -> None:
     assert temporal_counts([], TemporalResolution.WEEKLY) == []
-
-
-def test__weekly_counts__aliases_weekly_resolution() -> None:
-    facts = [make_fact()]
-    assert weekly_counts(facts) == temporal_counts(facts, TemporalResolution.WEEKLY)
 
 
 def test__timeline__labels_follow_the_resolution() -> None:

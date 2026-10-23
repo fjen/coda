@@ -96,11 +96,6 @@ def temporal_counts(
     return points
 
 
-def weekly_counts(facts: Sequence[RequestFact]) -> list[TimelinePoint]:
-    """Backwards-compatible alias: weekly resolution."""
-    return temporal_counts(facts, TemporalResolution.WEEKLY)
-
-
 def _tick_angle(resolution: TemporalResolution, buckets: int) -> int:
     """Long labels rotate; short ones (months, quarters) read horizontal."""
     if resolution is TemporalResolution.WEEKLY:
