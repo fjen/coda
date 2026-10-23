@@ -192,7 +192,7 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
     # QueryDict.get returns the LAST value of a repeated key — exactly the
     # submitter-wins semantics the tab/resolution submit buttons rely on.
     tab = request.GET.get("tab", "overview")
-    if tab not in ("overview", "groups", *(group.id for group in DIMENSION_GROUPS)):
+    if tab not in ("overview", *(group.id for group in DIMENSION_GROUPS)):
         tab = "overview"
     try:
         resolution = TemporalResolution(request.GET.get("resolution", "weekly"))
@@ -259,7 +259,6 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
             if comparison_report
             else report.headline
         ),
-        "headline_comparison": comparison_report.headline if comparison_report else None,
         "timeline": timeline_figure(
             temporal_counts(facts, resolution),
             temporal_counts(comparison_facts, resolution) if comparison_facts else None,
