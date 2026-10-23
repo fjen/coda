@@ -178,7 +178,9 @@ def test__reporting_page__bare_get__redirects_to_current_year_period(client: Cli
 def test__reporting_page__bare_get_with_filters__redirect_preserves_them(client: Client) -> None:
     year = timezone.localdate().year
 
-    response = client.get(reverse("reporting:stats_fundingrequests"), data={"license": License.CC_BY.value})
+    response = client.get(
+        reverse("reporting:stats_fundingrequests"), data={"license": License.CC_BY.value}
+    )
 
     assert response.status_code == HTTPStatus.FOUND
     assert query_params(response.headers["Location"]) == {
@@ -280,7 +282,9 @@ def test__reporting_page__currency_incomplete_notice__counts_requests_and_links_
         client.get(
             reverse("reporting:stats_fundingrequests"),
             data={**PERIOD, "tab": "overview"},
-        ).content.decode().split()
+        )
+        .content.decode()
+        .split()
     )
     assert "Requests with excluded amounts" in overview_html
 
@@ -488,6 +492,9 @@ def test__reporting_page__publication_without_journal_or_publisher__forms_unknow
         ("article", 3),
         ("Unknown", 1),
     ]
+    # The Unknown row is the unattributed sentinel: the section header counts
+    # the requests the facet cannot express as a value.
+    assert section.unattributed == 1
     assert row_by_label(section, "Unknown").link is None
 
     articles = client.get(
@@ -699,7 +706,9 @@ def test__reporting_page__facet_chips__name_values_and_point_back_at_the_page(
         fixture.journal.title,
     ]
     assert response.context["filter_count"] == 4
-    assert all(chip.remove_url.startswith(reverse("reporting:stats_fundingrequests")) for chip in chips)
+    assert all(
+        chip.remove_url.startswith(reverse("reporting:stats_fundingrequests")) for chip in chips
+    )
 
 
 @pytest.mark.django_db
@@ -709,6 +718,47 @@ def test__statistics_urls__resolve() -> None:
         reverse("reporting:stats_fundingrequests_region")
         == "/reporting/stats/fundingrequests/region/"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__reporting_page__compare_with_one_sided_range__renders_no_comparison(
+    client: Client,
+) -> None:
+    """A one-sided range has a defined start but an undefined prior window —
+    the prior period is undefined, not zero. The compare toggle must render
+    no comparison at all: no deltas, no zero-filled previous series."""
+    seed()
+
+    response = goto(client, compare="1", end_date="")
+    headline = response.context["headline"]
+    assert headline.delta_publications is None
+    assert headline.delta_spend is None
+    assert response.context["compare"] is False
+    assert response.context["comparison"] is None
+    assert "headline-delta" not in response.content.decode()
+
+    # With both bounds the same toggle compares for real.
+    compared = goto(client, compare="1")
+    assert compared.context["compare"] is True
+    assert compared.context["comparison"] is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("logged_in")
+def test__reporting_page__list_link__carries_no_statistics_state(client: Client) -> None:
+    """The bridge into the funding-request list carries the page's filters,
+    never its own display state (tab, compare, resolution)."""
+    seed()
+
+    url = goto(client, compare="1", resolution="monthly", tab="venues").context["list_view_url"]
+
+    from urllib.parse import parse_qs, urlparse
+
+    params = parse_qs(urlparse(url).query)
+    assert "tab" not in params
+    assert "compare" not in params
+    assert "resolution" not in params
 
 
 @pytest.mark.django_db

@@ -42,7 +42,7 @@ from coda.apps.reporting.dataset import build_facts
 from coda.apps.reporting.drilldown import DrilldownLinks, list_view_url
 from coda.apps.reporting.treemap import institution_treemap
 from coda.contexts.statistics import charts
-from coda.contexts.statistics.dimensions import DIMENSIONS
+from coda.contexts.statistics.dimensions import DIMENSIONS, UNKNOWN
 from coda.contexts.statistics.dto import (
     ChartSpec,
     GroupRow,
@@ -198,13 +198,17 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         resolution = TemporalResolution(request.GET.get("resolution", "weekly"))
     except ValueError:
         resolution = TemporalResolution.WEEKLY
-    comparison_facts: tuple[RequestFact, ...] = ()
     # The switch label names the prior window even when unchecked — the user
-    # should see what "compare" would cover for the current date range.
+    # should see what "compare" would cover for the current date range. With
+    # a one-sided range the prior window is undefined, not zero: compare
+    # stays off (a one-sided window would otherwise render an all-zero
+    # comparison).
     compare_period: tuple[date, date] | None = None
     if (date_range := filter_form.cleaned_data.get("date_range")) is not None:
         compare_period = _prior_period(date_range.start, date_range.end)
-    if compare and compare_period:
+    compare = bool(compare and compare_period)
+    comparison_facts: tuple[RequestFact, ...] = ()
+    if compare:
         comparison_criteria = filter_form.search_criteria(date_override=compare_period)[0]
         comparison_facts = build_facts(queries.fetch_requests(comparison_criteria), home_currency)
     comparison_report = charts.report(comparison_facts, DIMENSIONS) if compare else None
@@ -390,16 +394,17 @@ def _panel(spec: ChartSpec, comparison: ChartSpec | None = None) -> ChartPanel:
     )
 
 
-#: The sentinel row labels marking requests a facet cannot attribute.
+#: The sentinel row labels marking requests a facet cannot attribute. Every
+#: dimension's unknown value renders as the UNKNOWN sentinel string.
 _UNATTRIBUTED_LABELS: dict[str, tuple[str, ...]] = {
-    "institution": ("Unknown",),
-    "subject_area": ("Unknown",),
-    "publication_type": ("Unknown",),
-    "publication_form": ("unknown",),
-    "license": ("Unknown",),
-    "open_access_type": ("Unknown",),
-    "journal": ("Unknown",),
-    "publisher": ("Unknown",),
+    "institution": (UNKNOWN,),
+    "subject_area": (UNKNOWN,),
+    "publication_type": (UNKNOWN,),
+    "publication_form": (UNKNOWN,),
+    "license": (UNKNOWN,),
+    "open_access_type": (UNKNOWN,),
+    "journal": (UNKNOWN,),
+    "publisher": (UNKNOWN,),
 }
 
 

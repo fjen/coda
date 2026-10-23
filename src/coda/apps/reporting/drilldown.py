@@ -136,8 +136,9 @@ class DrilldownLinks:
 def list_view_url(request: HttpRequest) -> str:
     """The funding-request list with the page's whole filter set (§2 #7):
     the one bridge from the statistics page into the data behind it. The
-    statistics page's own ``tab`` is not a list filter."""
-    return build_url(_LIST_URL, params_without(request.GET, "page", "tab"))
+    statistics page's own state (tab, compare, resolution) is not a list
+    filter."""
+    return build_url(_LIST_URL, params_without(request.GET, "page", "tab", "compare", "resolution"))
 
 
 def _lookup_tables(vocabularies: PreloadedVocabularyProvider) -> dict[str, dict[str, list[str]]]:
