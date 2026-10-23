@@ -109,9 +109,9 @@ def _bars_figure(grouping: Grouping) -> dict[str, Any]:
     # bargap is the empty fraction of a slot, so a slot of slot_px px yields
     # bars of (1 - bargap) * slot_px px.
     MAX_BAR_PX = 90
+    TYPICAL_PLOT_PX = 1100  # typical plot width; bargap only needs to be close
     rows = len(grouping.rows)
-    panel_px = 1100  # typical plot width; bargap only needs to be close
-    bargap = max(0.3, 1.0 - MAX_BAR_PX / (panel_px / max(rows, 1)))
+    bargap = max(0.3, 1.0 - MAX_BAR_PX / (TYPICAL_PLOT_PX / max(rows, 1)))
     # The plot area — not the figure — is the fixed quantity: the rotated
     # label band gets its own margin sized from the longest label, so
     # tick-label length changes figure height but never squeezes the chart.

@@ -10,6 +10,7 @@
         one block. The band owns the toolbar (filter_layout's copy is off via
         filter_toolbar=False); everything sits outside the swapped region.
     {% endcomment %}
+    {% with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" %}
     <div class="statistics-header-band">
         {% url 'reporting:stats_fundingrequests_region' as filter_region_url %}
         <form id="filter-toolbar-form"
@@ -33,7 +34,7 @@
             <button type="submit" hidden aria-hidden="true" tabindex="-1"></button>
             <input type="hidden" name="tab" id="statistics-tab-value" value="{{ tab }}">
             <input type="hidden" name="resolution" id="statistics-resolution-value" value="{{ resolution }}">
-            {% include "partials/filter_toolbar.html" with filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
+            {% include "partials/filter_toolbar.html" with filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" %}
             {% include "partials/filter_period.html" %}
         </form>
         <div class="statistics-active-filters mt-1" id="statistics-active-filters">
@@ -43,7 +44,8 @@
             {% include "reporting/partials/statistics_tab_nav.html" %}
         </nav>
     </div>
-    {% include "partials/filter_layout.html" with filter_toolbar=False filter_period_in_toolbar=True filter_toolbar_search_placeholder="Search requests by title, author, journal, publisher or ID" filter_toolbar_search_aria_label="Search requests by title, author, journal, publisher or ID" filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_content.html" filter_region_url_name="reporting:stats_fundingrequests_region" filter_list_id="reporting-region" filter_clear_url=reporting_url %}
+    {% include "partials/filter_layout.html" with filter_toolbar=False filter_period_in_toolbar=True filter_toolbar_hide_sort=True filter_toolbar_extra_template="reporting/partials/label_state.html" filter_sidebar_template="fundingrequests/fundingrequest_filter_sidebar.html" filter_list_region_template="reporting/partials/reporting_content.html" filter_region_url_name="reporting:stats_fundingrequests_region" filter_list_id="reporting-region" filter_clear_url=reporting_url %}
+    {% endwith %}
     <script src="{% static 'js/vendor/plotly.min.js' %}"
             defer
             crossorigin="anonymous"></script>
