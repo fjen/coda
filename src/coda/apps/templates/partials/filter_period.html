@@ -7,7 +7,7 @@
     region response, so an edited date range updates the label on the next
     swap.
 {% endcomment %}
-<div class="filter-period" id="filter-period">
+<div class="filter-period" id="filter-period" {% if filter_period_oob %}hx-swap-oob="outerHTML"{% endif %}>
 
 
     {{ filter_form.date_range.subwidgets.0 }}

@@ -250,7 +250,6 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
         # confuses. The drawer's rail keeps its chips.
         "band_active_filters": [chip for chip in summary.chips if chip.kind != "date"],
         "filter_count": summary.count,
-        "filter_errors": summary.errors,
         "filter_clear_url": reverse(_PAGE_URL),
         "filter_list_id": _REGION_ELEMENT_ID,
         "list_view_url": list_view_url(request),
@@ -284,6 +283,8 @@ def reporting_context(request: HttpRequest) -> dict[str, Any]:
             if group_sections(group) or (group.has_treemap and treemap)
         ],
         "active_group": tab,
+        # Test-only: sections_by_id() reads this; templates render via the
+        # per-group entries above.
         "sections": all_sections,
     }
 

@@ -38,7 +38,8 @@
                 {% include filter_list_region_template %}
             </div>
             <div id="{{ filter_list_id }}-loading" class="filter-loading" aria-hidden="true">
-                <span class="filter-loading-spinner" role="status" aria-label="Loading"></span>
+                {# Visual-only overlay: it is aria-hidden, so no live-region role here — a suppressed announcement helps nobody. #}
+                <span class="filter-loading-spinner" aria-hidden="true"></span>
             </div>
         </div>
     </div>
