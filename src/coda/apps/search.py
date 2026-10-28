@@ -1,3 +1,4 @@
+import itertools
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -29,6 +30,17 @@ _PREFIXED_TERM_RE = re.compile(r"""\b(\w+):("[^"]*"|\S+)""")
 
 # Match a double-quoted phrase, capturing its content
 _QUOTED_PHRASE_RE = re.compile(r'"([^"]*)"')
+
+# Matches the interchangeable tokens "and" and "&" as standalone words: the
+# token must be delimited by word boundaries (for "and") or whitespace/string
+# edges (for "&"), so "sandwich" and "R&D" do not count. Case-insensitive:
+# "AND" and "And" rewrite to the same variants (matching is icontains).
+_AND_TOKEN_RE = re.compile(r"(\band\b|(?:(?<=^)|(?<=\s))&(?=\s|$))", re.IGNORECASE)
+
+# Values yielding more than this many distinct and/& variants are searched
+# literally. The per-term lookup count is variants x fields: FR generic search
+# (7 field paths) at the cap would be 56 icontains ORs for one term.
+_MAX_AND_VARIANTS = 8
 
 
 @dataclass
@@ -170,15 +182,45 @@ def _parse_prefixed_terms(
     return _PrefixedParseResult(terms=terms, remaining=remaining)
 
 
+def _and_variants(value: str) -> list[str]:
+    """Literal rewrites of value with each standalone and/& token swapped.
+
+    "wiley and sons" -> ["wiley and sons", "wiley & sons"]. The "&" token must
+    sit between whitespace/string edges, so "R&D" is never rewritten. Values
+    yielding more than _MAX_AND_VARIANTS distinct variants are searched
+    literally.
+    """
+    parts = _AND_TOKEN_RE.split(value)
+    token_count = (len(parts) - 1) // 2
+    if token_count == 0:
+        return [value]
+
+    variants = []
+    for combo in itertools.product(*([["and", "&"]] * token_count)):
+        it = iter(combo)
+        variants.append("".join(next(it) if i % 2 else part for i, part in enumerate(parts)))
+    unique = list(dict.fromkeys(variants))
+    if len(unique) > _MAX_AND_VARIANTS:
+        return [value]
+    # The original value first (structural, not a sort): Q children compare
+    # positionally, so keeping [value, *swapped] pins Q-shape order.
+    return list(dict.fromkeys([value, *unique]))
+
+
 def _match_any_field(value: str, fields: Sequence[str]) -> Q:
     """Build a Q that matches value (case-insensitively) in at least one of the fields.
 
+    A value containing standalone and/& tokens also matches its swapped
+    variants ("wiley and sons" also matches "Wiley & Sons").
+
     Returns:
-        A Q joining one ``icontains`` lookup per field with OR logic.
+        A Q joining one ``icontains`` lookup per (variant, field) pair with OR
+        logic.
     """
     q = Q()
-    for field in fields:
-        q |= Q(**{f"{field}__icontains": value})
+    for variant in _and_variants(value):
+        for field in fields:
+            q |= Q(**{f"{field}__icontains": variant})
     return q
 
 

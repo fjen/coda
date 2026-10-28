@@ -5,6 +5,7 @@ from django.db.models import Q
 
 from coda.apps.search import (
     ScopedAlias,
+    _and_variants,
     _parse_prefixed_terms,
     _parse_search_terms,
     _PrefixedTerm,
@@ -245,8 +246,6 @@ class TestScopedAlias:
         )
         assert q == Q(publication__links__value__icontains="10.1234/abc") & extra
 
-
-
     def test_scoped_plain_and_word_terms_order(self) -> None:
         """Scoped term (with extra filter) comes before generic words in AND order."""
         extra = Q(publication__links__type__name="DOI")
@@ -262,3 +261,98 @@ class TestScopedAlias:
             & (Q(title__icontains="springer") | Q(author__name__icontains="springer"))
         )
         assert q == expected
+
+
+class TestAndVariants:
+    def test_no_token(self) -> None:
+        assert _and_variants("wiley sons") == ["wiley sons"]
+
+    def test_single_and(self) -> None:
+        assert _and_variants("wiley and sons") == ["wiley and sons", "wiley & sons"]
+
+    def test_single_ampersand(self) -> None:
+        assert _and_variants("wiley & sons") == ["wiley & sons", "wiley and sons"]
+
+    def test_two_tokens(self) -> None:
+        assert len(_and_variants("rock and roll and more")) == 4
+
+    def test_ampersand_needs_whitespace_edges(self) -> None:
+        """R&D / AT&T keep their & - no rewrite."""
+        assert _and_variants("R&D Systems") == ["R&D Systems"]
+        assert _and_variants("AT&T") == ["AT&T"]
+
+    def test_and_needs_word_boundaries(self) -> None:
+        assert _and_variants("sandwich maker") == ["sandwich maker"]
+
+    def test_deduplicates_degenerate_input(self) -> None:
+        """'and and' collapses to the distinct forms only."""
+        variants = _and_variants("and and")
+        assert len(variants) == len(set(variants))
+        assert len(variants) == 4  # 2 tokens -> 4 combos, all distinct
+
+    def test_capped_beyond_threshold(self) -> None:
+        """More than 8 distinct variants falls back to the literal value."""
+        value = "a and b and c and d and e"  # 4 tokens -> 16 variants
+        assert _and_variants(value) == [value]
+
+    def test_at_threshold(self) -> None:
+        """3 tokens yield 8 distinct variants - right at the limit."""
+        value = "a and b and c and d"
+        assert len(_and_variants(value)) == 8
+
+    def test_variants_preserve_value(self) -> None:
+        """Every variant equals the original modulo the token swap."""
+        for value in ["rock and roll and more", "wiley & sons", "rock & roll and more"]:
+            for variant in _and_variants(value):
+                normalized = variant.replace(" & ", " and ").replace("& ", "and ").strip()
+                assert normalized.replace("and", "and").strip() != "" or value == variant
+
+
+class TestBuildSearchFilterWithAndVariants:
+    def test_quoted_phrase_matches_ampersand_variant(self) -> None:
+        q = build_search_filter('"wiley and sons"', "name")
+        expected = Q(name__icontains="wiley and sons") | Q(name__icontains="wiley & sons")
+        assert q == expected
+
+    def test_quoted_ampersand_matches_and_variant(self) -> None:
+        q = build_search_filter('"wiley & sons"', "name")
+        expected = Q(name__icontains="wiley & sons") | Q(name__icontains="wiley and sons")
+        assert q == expected
+
+    def test_unquoted_and_word_matches_both_forms(self) -> None:
+        """Unquoted, 'and' is its own word: matches 'and' or '&' as a word."""
+        q = build_search_filter("wiley and sons", "name")
+        expected = (
+            Q(name__icontains="wiley")
+            & (Q(name__icontains="and") | Q(name__icontains="&"))
+            & Q(name__icontains="sons")
+        )
+        assert q == expected
+
+    def test_prefixed_term_gets_variants(self) -> None:
+        q = build_search_filter(
+            'publisher:"wiley and sons"',
+            "name",
+            field_aliases={"publisher": "name"},
+        )
+        expected = Q(name__icontains="wiley and sons") | Q(name__icontains="wiley & sons")
+        assert q == expected
+
+    def test_token_free_terms_unchanged(self) -> None:
+        q = build_search_filter("springer", "name")
+        assert q == Q(name__icontains="springer")
+
+    def test_variants_or_within_and_structure(self) -> None:
+        """Variants OR within a term; terms still AND."""
+        q = build_search_filter('"wiley and sons" springer', "name")
+        variant_q = Q(name__icontains="wiley and sons") | Q(name__icontains="wiley & sons")
+        assert q == variant_q & Q(name__icontains="springer")
+
+    def test_case_insensitive_tokens(self) -> None:
+        """Uppercase AND/And rewrite to the same variants as lowercase."""
+        assert "Wiley & Sons" in _and_variants("Wiley AND Sons")
+        assert "wiley & sons" in _and_variants("wiley And sons")
+
+    def test_case_insensitive_boundaries_hold(self) -> None:
+        """SAND is not a token regardless of case."""
+        assert _and_variants("SAND dune") == ["SAND dune"]
